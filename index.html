@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RIM - Road Intelligence Matrix</title>
   <link href="style.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 </head>
 <body>
 
@@ -13,42 +14,25 @@
       <h1 class="site-title">RIM<span class="site-sub">(Road Intelligence Matrix)</span></h1>
       <p class="site-tagline">도로 인프라 기반 자율주행 안전 시뮬레이션 플랫폼</p>
     </div>
-    <div class="live-indicator"><span class="live-dot"></span>LIVE</div>
+    <div class="live-indicator"><span class="live-dot"></span>LIVE SIM</div>
   </header>
 
   <main>
-
     <section class="control-panel">
       <div class="control-inner">
 
         <div class="control-block">
           <div class="control-label">기상 조건</div>
           <div class="weather-btns">
-            <button class="w-btn active" data-weather="clear">
-              <div class="w-icon">☀️</div>
-              <div class="w-name">맑음</div>
-              <div class="w-decel">감속 0%</div>
-            </button>
-            <button class="w-btn" data-weather="rain">
-              <div class="w-icon">🌧️</div>
-              <div class="w-name">비</div>
-              <div class="w-decel">감속 20%</div>
-            </button>
-            <button class="w-btn" data-weather="snow">
-              <div class="w-icon">❄️</div>
-              <div class="w-name">눈·폭우</div>
-              <div class="w-decel">감속 50%</div>
-            </button>
-            <button class="w-btn" data-weather="fog">
-              <div class="w-icon">🌫️</div>
-              <div class="w-name">안개</div>
-              <div class="w-decel">감속 50%</div>
-            </button>
+            <button class="w-btn active" data-weather="clear"><div class="w-icon">☀️</div><div class="w-name">맑음</div><div class="w-decel">감속 0%</div></button>
+            <button class="w-btn" data-weather="rain"><div class="w-icon">🌧️</div><div class="w-name">비</div><div class="w-decel">감속 20%</div></button>
+            <button class="w-btn" data-weather="snow"><div class="w-icon">❄️</div><div class="w-name">눈·폭우</div><div class="w-decel">감속 50%</div></button>
+            <button class="w-btn" data-weather="fog"><div class="w-icon">🌫️</div><div class="w-name">안개</div><div class="w-decel">감속 50%</div></button>
           </div>
         </div>
 
         <div class="control-block">
-          <div class="control-label">주행 속도 설정</div>
+          <div class="control-label">기준 차량 속도 <span class="ego-badge">● EGO</span></div>
           <div class="speed-row-top">
             <div class="speed-big"><span id="speed-val">100</span><span class="speed-unit">km/h</span></div>
             <div class="signal-box">
@@ -65,19 +49,61 @@
           <div class="weather-cond-txt" id="weather-cond">정상 기상 조건 / 노면 건조</div>
         </div>
 
+        <div class="control-block legend-block">
+          <div class="control-label">V2V 통신 범례</div>
+          <div class="v2v-legend">
+            <div class="v2l-item"><span class="v2l-dot good"></span><span>양호 신호</span></div>
+            <div class="v2l-item"><span class="v2l-dot caution"></span><span>주의 신호</span></div>
+            <div class="v2l-item"><span class="v2l-dot danger"></span><span>위험 신호</span></div>
+            <div class="v2l-item"><span class="v2l-ego">EGO</span><span>기준 차량</span></div>
+          </div>
+          <div class="v2v-desc">차량 간 실시간 상태 공유 — 시야 미확보 구간도 V2V로 위험 사전 인지</div>
+        </div>
+
       </div>
     </section>
 
     <section class="sim-section">
       <div class="sim-header">
-        <h2 class="sim-title">구간별 실시간 시뮬레이션</h2>
-        <div class="legend">
+        <h2 class="sim-title">구간별 3D 실시간 시뮬레이션</h2>
+        <div class="global-legend">
           <span class="leg good">● 양호</span>
           <span class="leg caution">● 주의</span>
           <span class="leg danger">● 위험</span>
         </div>
       </div>
-      <div class="road-grid" id="road-grid"></div>
+      <div class="road-grid" id="road-grid">
+        <div class="road-panel" id="panel-highway">
+          <canvas id="canvas-highway"></canvas>
+          <div class="hud-top"><span class="hud-icon">🛣️</span><span class="hud-name">일반 고속도로</span><span class="hud-badge" id="badge-highway">양호</span></div>
+          <div class="hud-bot"><div class="hud-speeds"><span>제한 <b>100</b>km/h</span><span>권장 <b id="rec-highway">100</b>km/h</span><span id="cur-highway" class="hud-cur good">현재 <b>100</b>km/h</span></div><div class="hud-signal" id="sig-highway">현재 속도 유지</div></div>
+        </div>
+        <div class="road-panel" id="panel-tunnel">
+          <canvas id="canvas-tunnel"></canvas>
+          <div class="hud-top"><span class="hud-icon">🚇</span><span class="hud-name">터널 진출입</span><span class="hud-badge" id="badge-tunnel">양호</span></div>
+          <div class="hud-bot"><div class="hud-speeds"><span>제한 <b>100</b>km/h</span><span>권장 <b id="rec-tunnel">100</b>km/h</span><span id="cur-tunnel" class="hud-cur good">현재 <b>100</b>km/h</span></div><div class="hud-signal" id="sig-tunnel">현재 속도 유지</div></div>
+        </div>
+        <div class="road-panel" id="panel-curve">
+          <canvas id="canvas-curve"></canvas>
+          <div class="hud-top"><span class="hud-icon">↩️</span><span class="hud-name">급커브 구간</span><span class="hud-badge" id="badge-curve">양호</span></div>
+          <div class="hud-bot"><div class="hud-speeds"><span>제한 <b>50</b>km/h</span><span>권장 <b id="rec-curve">50</b>km/h</span><span id="cur-curve" class="hud-cur good">현재 <b>100</b>km/h</span></div><div class="hud-signal" id="sig-curve">현재 속도 유지</div></div>
+        </div>
+        <div class="road-panel" id="panel-bridge">
+          <canvas id="canvas-bridge"></canvas>
+          <div class="hud-top"><span class="hud-icon">🌉</span><span class="hud-name">교량·고가도로</span><span class="hud-badge" id="badge-bridge">양호</span></div>
+          <div class="hud-bot"><div class="hud-speeds"><span>제한 <b>100</b>km/h</span><span>권장 <b id="rec-bridge">100</b>km/h</span><span id="cur-bridge" class="hud-cur good">현재 <b>100</b>km/h</span></div><div class="hud-signal" id="sig-bridge">현재 속도 유지</div></div>
+        </div>
+        <div class="road-panel" id="panel-ic">
+          <canvas id="canvas-ic"></canvas>
+          <div class="hud-top"><span class="hud-icon">🔀</span><span class="hud-name">IC·JC 연결로</span><span class="hud-badge" id="badge-ic">양호</span></div>
+          <div class="hud-bot"><div class="hud-speeds"><span>제한 <b>60</b>km/h</span><span>권장 <b id="rec-ic">60</b>km/h</span><span id="cur-ic" class="hud-cur good">현재 <b>100</b>km/h</span></div><div class="hud-signal" id="sig-ic">현재 속도 유지</div></div>
+        </div>
+        <div class="road-panel" id="panel-merge">
+          <canvas id="canvas-merge"></canvas>
+          <div class="hud-top"><span class="hud-icon">🚦</span><span class="hud-name">병목·합류구간</span><span class="hud-badge" id="badge-merge">양호</span></div>
+          <div class="hud-bot"><div class="hud-speeds"><span>제한 <b>80</b>km/h</span><span>권장 <b id="rec-merge">80</b>km/h</span><span id="cur-merge" class="hud-cur good">현재 <b>100</b>km/h</span></div><div class="hud-signal" id="sig-merge">현재 속도 유지</div></div>
+        </div>
+      </div>
     </section>
 
     <section class="info-section">
@@ -89,7 +115,6 @@
       </div>
       <div class="tab-body" id="tab-body"></div>
     </section>
-
   </main>
 
   <footer class="site-footer">
