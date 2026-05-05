@@ -1,14 +1,101 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+  <title>RIM - Road Intelligence Matrix</title>
+  <link href="style.css" rel="stylesheet">
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+
+  <header class="site-header">
+    <div class="header-left">
+      <h1 class="site-title">RIM<span class="site-sub">(Road Intelligence Matrix)</span></h1>
+      <p class="site-tagline">도로 인프라 기반 자율주행 안전 시뮬레이션 플랫폼</p>
+    </div>
+    <div class="live-indicator"><span class="live-dot"></span>LIVE</div>
+  </header>
+
+  <main>
+
+    <section class="control-panel">
+      <div class="control-inner">
+
+        <div class="control-block">
+          <div class="control-label">기상 조건</div>
+          <div class="weather-btns">
+            <button class="w-btn active" data-weather="clear">
+              <div class="w-icon">☀️</div>
+              <div class="w-name">맑음</div>
+              <div class="w-decel">감속 0%</div>
+            </button>
+            <button class="w-btn" data-weather="rain">
+              <div class="w-icon">🌧️</div>
+              <div class="w-name">비</div>
+              <div class="w-decel">감속 20%</div>
+            </button>
+            <button class="w-btn" data-weather="snow">
+              <div class="w-icon">❄️</div>
+              <div class="w-name">눈·폭우</div>
+              <div class="w-decel">감속 50%</div>
+            </button>
+            <button class="w-btn" data-weather="fog">
+              <div class="w-icon">🌫️</div>
+              <div class="w-name">안개</div>
+              <div class="w-decel">감속 50%</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <div class="control-label">주행 속도 설정</div>
+          <div class="speed-row-top">
+            <div class="speed-big"><span id="speed-val">100</span><span class="speed-unit">km/h</span></div>
+            <div class="signal-box">
+              <div class="signal-lbl">RIM 신호</div>
+              <div class="signal-txt" id="global-signal">현재 속도 유지</div>
+              <div class="signal-law" id="global-law">법령 기준 속도 유지</div>
+            </div>
+          </div>
+          <div class="slider-wrap">
+            <span class="slider-edge">10</span>
+            <input type="range" id="speed-slider" min="10" max="120" value="100" step="5">
+            <span class="slider-edge">120</span>
+          </div>
+          <div class="weather-cond-txt" id="weather-cond">정상 기상 조건 / 노면 건조</div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="sim-section">
+      <div class="sim-header">
+        <h2 class="sim-title">구간별 실시간 시뮬레이션</h2>
+        <div class="legend">
+          <span class="leg good">● 양호</span>
+          <span class="leg caution">● 주의</span>
+          <span class="leg danger">● 위험</span>
+        </div>
+      </div>
+      <div class="road-grid" id="road-grid"></div>
+    </section>
+
+    <section class="info-section">
+      <div class="info-tabs">
+        <button class="tab-btn active" data-tab="background">배경 및 필요성</button>
+        <button class="tab-btn" data-tab="sensors">구간별 센서 배치</button>
+        <button class="tab-btn" data-tab="weather">기상 감속 알고리즘</button>
+        <button class="tab-btn" data-tab="limits">구간별 제한속도</button>
+      </div>
+      <div class="tab-body" id="tab-body"></div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2025 RIM — Road Intelligence Matrix. All rights reserved.</p>
+  </footer>
+
+  <script src="main.js"></script>
 </body>
 </html>
