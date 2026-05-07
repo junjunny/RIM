@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 /* ── DATA ─────────────────────────────────── */
 const SECTIONS = [
   { id:'highway', name:'일반 고속도로', icon:'🛣️', speedLimit:100 },

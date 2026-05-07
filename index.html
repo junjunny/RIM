@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RIM - Road Intelligence Matrix</title>
   <link href="style.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.167.0/build/three.module.js" } }
+  </script>
 </head>
 <body>
 
@@ -123,6 +125,6 @@
     <p>© 2025 RIM — Road Intelligence Matrix. All rights reserved.</p>
   </footer>
 
-  <script src="main.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>
