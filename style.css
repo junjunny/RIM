@@ -266,7 +266,7 @@ input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
   overflow: hidden;
   transition: border-color 0.3s, box-shadow 0.3s;
   position: relative;
-  height: 230px;
+  height: 270px;
 }
 
 .road-panel.good {
