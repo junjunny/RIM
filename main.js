@@ -756,6 +756,9 @@ function updateSimStatus(sim, st) {
 function animateSim(sim, ts, dt) {
   const wx     = WEATHER[weather];
   const carSpd = (speed / 100) * (1 - wx.decel) * 0.055 * 60 * dt;
+  const isRain = weather === 'rain';
+  const isSnow = weather === 'snow';
+  const isFog  = weather === 'fog';
 
   /* ── 모든 차량 이동 (EGO 포함) ── */
   sim.cars.forEach(car => {
@@ -811,18 +814,23 @@ function animateSim(sim, ts, dt) {
       if (inX && inZ) { carNear = true; if (car.isEgo) egoNear = true; }
     });
 
-    /* EGO 감지 시 더 강한 반응 */
-    const targetOp = egoNear ? 0.92 : carNear ? 0.68 : 0.04 + 0.03 * Math.sin(ts * 2 + s.phase * 5);
+    /* 안개 시 베이스라인 상향 — 도로 매립 센서는 날씨 무관하게 항상 감지 중 */
+    const fogBase   = isFog ? 0.28 + 0.10 * Math.sin(ts * 1.8 + s.phase * 3) : 0.04 + 0.03 * Math.sin(ts * 2 + s.phase * 5);
+    const targetOp  = egoNear ? 0.92 : carNear ? 0.72 : fogBase;
     s.glowMat.opacity += (targetOp - s.glowMat.opacity) * 0.2;
 
-    /* 데이터 빔 */
-    s.pulseMat.opacity = carNear ? 0.75 + 0.25 * Math.sin(ts * 10 + s.phase) : 0;
+    /* 데이터 빔 — 안개 시 차 없어도 저강도 상시 발광 */
+    const beamActive = carNear || isFog;
+    s.pulseMat.opacity = carNear
+      ? 0.75 + 0.25 * Math.sin(ts * 10 + s.phase)
+      : isFog ? 0.18 + 0.12 * Math.abs(Math.sin(ts * 2.5 + s.phase)) : 0;
     if (s.pulseMesh) {
-      s.pulseMesh.scale.y = carNear ? 1.4 + 0.9 * Math.abs(Math.sin(ts * 7 + s.phase)) : 0.05;
+      s.pulseMesh.scale.y = carNear ? 1.4 + 0.9 * Math.abs(Math.sin(ts * 7 + s.phase))
+        : isFog ? 0.35 + 0.2 * Math.abs(Math.sin(ts * 2 + s.phase)) : 0.05;
     }
 
-    /* RSU LED: 감지 시 깜빡임 */
-    s.ledMat.opacity = carNear ? 0.6 + 0.4 * Math.sin(ts * 8 + s.phase) : 0.25;
+    /* RSU LED: 안개 시 항상 최대 밝기 */
+    s.ledMat.opacity = carNear ? 0.6 + 0.4 * Math.sin(ts * 8 + s.phase) : isFog ? 0.95 : 0.25;
   });
 
   /* ── 열화상 카메라 애니메이션 ── */
@@ -835,27 +843,37 @@ function animateSim(sim, ts, dt) {
       }
     });
 
-    /* 스캔 라인 왕복 */
-    tc.scanBar.position.z = tc.z + Math.sin(ts * 1.2 + tc.phase * 2) * tc.zHW * 0.85;
+    /* 스캔 라인 왕복 — 안개 시 빠르게 */
+    const scanSpd = isFog ? 2.2 : 1.2;
+    tc.scanBar.position.z = tc.z + Math.sin(ts * scanSpd + tc.phase * 2) * tc.zHW * 0.85;
 
-    const baseOp = 0.04 + 0.02 * Math.sin(ts * 0.8 + tc.phase * 3);
-    tc.fanMat.opacity    = carInZone ? (egoInZone ? 0.18 : 0.12) + 0.04 * Math.sin(ts * 3) : baseOp;
-    tc.wireMat.opacity   = carInZone ? 0.7 : 0.25;
-    tc.scanMat.opacity   = carInZone ? 0.8 + 0.2 * Math.sin(ts * 4 + tc.phase) : 0.35;
+    /* 안개 시: 열화상은 안개 관통 → 스캔필드·와이어 모두 최대 밝기로 강조 */
+    const baseOp = isFog
+      ? 0.42 + 0.08 * Math.sin(ts * 1.5 + tc.phase * 2)   // 안개: 상시 강한 스캔 필드
+      : 0.04 + 0.02 * Math.sin(ts * 0.8 + tc.phase * 3);  // 평상시: 거의 꺼짐
+    tc.fanMat.opacity  = isFog
+      ? Math.max(0.42, carInZone ? (egoInZone ? 0.62 : 0.52) : baseOp)
+      : carInZone ? (egoInZone ? 0.18 : 0.12) + 0.04 * Math.sin(ts * 3) : baseOp;
+    tc.wireMat.opacity = isFog ? 0.88 + 0.12 * Math.sin(ts * 2 + tc.phase) : carInZone ? 0.7 : 0.25;
+    tc.scanMat.opacity = isFog
+      ? 0.90 + 0.10 * Math.sin(ts * 4 + tc.phase)
+      : carInZone ? 0.8 + 0.2 * Math.sin(ts * 4 + tc.phase) : 0.35;
 
-    /* 카메라 헤드 발광 (차량 감지 시) */
-    tc.camMat.emissive.setHex(carInZone ? CLR_NUM[sim.st] : 0x000000);
-    tc.camMat.emissiveIntensity = carInZone ? 0.5 + 0.2 * Math.sin(ts * 5) : 0;
+    /* 카메라 헤드 발광: 안개 시 주황색 상시 발광 (열화상 활성 표시) */
+    if (isFog) {
+      tc.camMat.emissive.setHex(0xff5500);
+      tc.camMat.emissiveIntensity = 0.7 + 0.2 * Math.sin(ts * 4 + tc.phase);
+    } else {
+      tc.camMat.emissive.setHex(carInZone ? CLR_NUM[sim.st] : 0x000000);
+      tc.camMat.emissiveIntensity = carInZone ? 0.5 + 0.2 * Math.sin(ts * 5) : 0;
+    }
 
-    /* 카메라 LED: EGO 감지 시 밝아짐 */
-    tc.camLedMat.opacity = egoInZone ? 1.0 : 0.7 + 0.2 * Math.sin(ts * 3 + tc.phase);
+    /* 카메라 LED: 안개 시 항상 최대 */
+    tc.camLedMat.opacity = (isFog || egoInZone) ? 1.0 : 0.7 + 0.2 * Math.sin(ts * 3 + tc.phase);
   });
 
-  /* ── 날씨 파티클 (불변) ── */
+  /* ── 날씨 파티클 ── */
   const { geo, mat, pos } = sim.particles;
-  const isRain = weather === 'rain';
-  const isSnow = weather === 'snow';
-  const isFog  = weather === 'fog';
   mat.opacity = (isRain || isSnow) ? 0.78 : 0;
   if (isRain || isSnow) {
     const fallSpd = isRain ? 9 : 1.8;
@@ -874,8 +892,8 @@ function animateSim(sim, ts, dt) {
   }
   const cfg = SCENE_CFG[sim.sec.id];
   if (isFog) {
-    sim.scene.fog.near = sim.sec.id === 'tunnel' ? cfg.fogN : 6;
-    sim.scene.fog.far  = sim.sec.id === 'tunnel' ? cfg.fogF : 20;
+    sim.scene.fog.near = sim.sec.id === 'tunnel' ? cfg.fogN : 14;
+    sim.scene.fog.far  = sim.sec.id === 'tunnel' ? cfg.fogF : 32;
     sim.scene.fog.color.setHex(0x2a4455);
   } else {
     sim.scene.fog.near = cfg.fogN;
