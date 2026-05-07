@@ -81,11 +81,11 @@ const LANE_XS = [-3.75, -1.25, 1.25, 3.75];
 /* shared materials */
 const MAT_ROAD     = new THREE.MeshLambertMaterial({ color: 0x1c2d4a });
 const MAT_ROAD_B   = new THREE.MeshLambertMaterial({ color: 0x2a3545 }); // bridge deck
-const MAT_ROAD_T   = new THREE.MeshLambertMaterial({ color: 0x0e1c28 }); // tunnel asphalt
+const MAT_ROAD_T   = new THREE.MeshLambertMaterial({ color: 0x363c42 }); // tunnel: dark gray asphalt
 const MAT_SHOULDER = new THREE.MeshLambertMaterial({ color: 0x0f1e30 });
 const MAT_LANE     = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const MAT_GRASS    = new THREE.MeshLambertMaterial({ color: 0x0d2a10 });
-const MAT_TUNNEL   = new THREE.MeshLambertMaterial({ color: 0x090f18 });
+const MAT_TUNNEL   = new THREE.MeshLambertMaterial({ color: 0x58626e }); // concrete gray
 const MAT_PILLAR   = new THREE.MeshLambertMaterial({ color: 0x263d5a });
 const MAT_RAIL     = new THREE.MeshLambertMaterial({ color: 0x3a5a7a });
 const MAT_CONE     = new THREE.MeshLambertMaterial({ color: 0xf97316, emissive: 0x200800 });
@@ -147,7 +147,7 @@ function buildTunnel(scene) {
 
     // Wall tile strips (visual rhythm)
     for (let z = -4; z >= -30; z -= 3.8) {
-      const tile = new THREE.Mesh(mkBox(0.05, 0.07, 3.3), new THREE.MeshBasicMaterial({ color: 0x1c3050 }));
+      const tile = new THREE.Mesh(mkBox(0.05, 0.07, 3.3), new THREE.MeshBasicMaterial({ color: 0x6a7888 }));
       tile.position.set(s * (ROAD_W / 2 + 0.68), 1.6, z);
       scene.add(tile);
     }
@@ -159,11 +159,11 @@ function buildTunnel(scene) {
   scene.add(ceil);
 
   // Portal frame at entry
-  const fTop = new THREE.Mesh(mkBox(ROAD_W + 3.5, 0.9, 0.5), mkMat(0x0f1e30));
+  const fTop = new THREE.Mesh(mkBox(ROAD_W + 3.5, 0.9, 0.5), mkMat(0x4a5460));
   fTop.position.set(0, 4.7, -0.8);
   scene.add(fTop);
   [-1, 1].forEach(s => {
-    const fp = new THREE.Mesh(mkBox(0.55, 4.7, 0.5), mkMat(0x0f1e30));
+    const fp = new THREE.Mesh(mkBox(0.55, 4.7, 0.5), mkMat(0x4a5460));
     fp.position.set(s * (ROAD_W / 2 + 1.2), 2.35, -0.8);
     scene.add(fp);
   });
@@ -230,55 +230,99 @@ function buildBridge(scene) {
   scene.add(void_);
 }
 
-/* ── CURVE ── */
+/* ── CURVE — builds the ENTIRE curved road (no separate buildRoadSurface) ── */
 function buildCurve(scene) {
-  const arcR = 20;
+  const SEGS       = 10;
+  const SEG_LEN    = 5.5;
+  const ANGLE_STEP = 0.18; // each segment turns this many radians (right-hand curve)
 
-  for (let i = 0; i < 11; i++) {
-    const a    = i * 0.12;
-    const aMid = a + 0.06;
+  let px = 0, pz = 0, angle = 0;
 
-    // Outer guardrail (follows arc on right side)
-    const ox = ROAD_W / 2 + 0.5 + arcR * Math.sin(a);
-    const oz = -2 - arcR * (1 - Math.cos(a));
-    const seg = new THREE.Mesh(mkBox(0.15, 0.55, 3.3), MAT_RAIL);
-    seg.position.set(ox, 0.3, oz);
-    seg.rotation.y = -aMid;
+  for (let i = 0; i < SEGS; i++) {
+    // rotation.y = PI - angle makes the box's local +z point in (sin(angle), 0, -cos(angle))
+    const rot = Math.PI - angle;
+    // perpendicular right = (cos(angle), 0, sin(angle))
+    const rx  = Math.cos(angle);
+    const rz  = Math.sin(angle);
+    // segment center
+    const cx  = px + Math.sin(angle) * SEG_LEN / 2;
+    const cz  = pz - Math.cos(angle) * SEG_LEN / 2;
+
+    // ── road surface
+    const seg = new THREE.Mesh(mkBox(ROAD_W + 0.3, 0.12, SEG_LEN + 0.2), MAT_ROAD);
+    seg.position.set(cx, 0, cz);
+    seg.rotation.y = rot;
     scene.add(seg);
 
-    // Chevron delineator posts on outer edge
-    const cx = ROAD_W / 2 + 1.1 + arcR * Math.sin(aMid);
-    const cz = -2 - arcR * (1 - Math.cos(aMid));
-    const post = new THREE.Mesh(mkBox(0.16, 1.2, 0.16), MAT_CHEVRON);
-    post.position.set(cx, 0.65, cz);
+    // ── shoulders
+    [-1, 1].forEach(s => {
+      const sh = new THREE.Mesh(mkBox(2.8, 0.1, SEG_LEN + 0.2), MAT_SHOULDER);
+      sh.position.set(cx + s * (ROAD_W / 2 + 1.4) * rx, 0.005, cz + s * (ROAD_W / 2 + 1.4) * rz);
+      sh.rotation.y = rot;
+      scene.add(sh);
+    });
+
+    // ── solid edge lines
+    [-1, 1].forEach(s => {
+      const e = new THREE.Mesh(mkBox(0.12, 0.015, SEG_LEN + 0.2), MAT_LANE);
+      e.position.set(cx + s * (ROAD_W / 2) * rx, 0.077, cz + s * (ROAD_W / 2) * rz);
+      e.rotation.y = rot;
+      scene.add(e);
+    });
+
+    // ── 3 inner lane dashes
+    [-2.5, 0, 2.5].forEach(lx => {
+      const d = new THREE.Mesh(mkBox(0.1, 0.015, SEG_LEN - 1.8), MAT_LANE);
+      d.position.set(cx + lx * rx, 0.077, cz + lx * rz);
+      d.rotation.y = rot;
+      scene.add(d);
+    });
+
+    // ── outer guardrail (right side — outside of curve)
+    const gr = new THREE.Mesh(mkBox(0.16, 0.55, SEG_LEN + 0.2), MAT_RAIL);
+    gr.position.set(cx + (ROAD_W / 2 + 0.45) * rx, 0.32, cz + (ROAD_W / 2 + 0.45) * rz);
+    gr.rotation.y = rot;
+    scene.add(gr);
+
+    // ── yellow-red chevron delineator post
+    const chX = cx + (ROAD_W / 2 + 1.25) * rx;
+    const chZ = cz + (ROAD_W / 2 + 1.25) * rz;
+    const post = new THREE.Mesh(mkBox(0.22, 1.4, 0.22), MAT_CHEVRON);
+    post.position.set(chX, 0.72, chZ);
     scene.add(post);
-    // Red band on post
-    const band = new THREE.Mesh(mkBox(0.2, 0.22, 0.2), MAT_BARRIER);
-    band.position.set(cx, 0.95, cz);
+    const band = new THREE.Mesh(mkBox(0.26, 0.25, 0.26), MAT_BARRIER);
+    band.position.set(chX, 1.12, chZ);
     scene.add(band);
+
+    // ── inner concrete curb (left side — inside of curve)
+    const curb = new THREE.Mesh(mkBox(0.32, 0.26, SEG_LEN + 0.2), mkMat(0x4a5a68));
+    curb.position.set(cx - (ROAD_W / 2 + 0.5) * rx, 0.14, cz - (ROAD_W / 2 + 0.5) * rz);
+    curb.rotation.y = rot;
+    scene.add(curb);
+
+    // advance to next segment start
+    px += Math.sin(angle) * SEG_LEN;
+    pz -= Math.cos(angle) * SEG_LEN;
+    angle += ANGLE_STEP;
   }
 
-  // Inner embankment (hill on left)
-  const hill = new THREE.Mesh(mkBox(7, 3.5, 38), mkMat(0x0c2810));
-  hill.position.set(-11.5, 1.5, -13);
+  // Inner hill (left side of curve)
+  const hill = new THREE.Mesh(mkBox(8, 4, 50), mkMat(0x0c2810));
+  hill.position.set(-14, 1.8, -15);
   scene.add(hill);
-  const hillFace = new THREE.Mesh(mkBox(0.35, 3.5, 38), mkMat(0x183a20));
-  hillFace.position.set(-8.0, 1.5, -13);
+  const hillFace = new THREE.Mesh(mkBox(0.4, 4, 50), mkMat(0x183a20));
+  hillFace.position.set(-9.5, 1.8, -15);
   scene.add(hillFace);
-  // Inner curb
-  const curb = new THREE.Mesh(mkBox(0.3, 0.25, 40), mkMat(0x4a5a68));
-  curb.position.set(-(ROAD_W / 2 + 0.45), 0.14, -12);
-  scene.add(curb);
 
-  // Speed warning signs on right shoulder
-  [-4, -16].forEach(z => {
-    const post = new THREE.Mesh(mkBox(0.08, 2.0, 0.08), mkMat(0x888888));
-    post.position.set(ROAD_W / 2 + 2.0, 1.0, z);
-    scene.add(post);
-    const sign = new THREE.Mesh(mkBox(0.7, 0.7, 0.06), MAT_SIGN_Y);
-    sign.position.set(ROAD_W / 2 + 2.0, 2.2, z);
-    sign.rotation.y = Math.PI / 4;
-    scene.add(sign);
+  // Speed warning signs right shoulder (near start of curve, world-space)
+  [{ z: -3, x: 8 }, { z: -14, x: 9.5 }].forEach(({ z, x }) => {
+    const wp = new THREE.Mesh(mkBox(0.09, 2.1, 0.09), mkMat(0x888888));
+    wp.position.set(x, 1.05, z);
+    scene.add(wp);
+    const ws = new THREE.Mesh(mkBox(0.8, 0.8, 0.07), MAT_SIGN_Y);
+    ws.position.set(x, 2.3, z);
+    ws.rotation.y = Math.PI / 4;
+    scene.add(ws);
   });
 }
 
@@ -441,30 +485,32 @@ function buildCars(scene, id, statusColor) {
   ego.add(roof);
   cars.push({ mesh: ego, isEgo: true });
 
-  // NPC definitions per scene
+  // Speed by lane: lane 0 (leftmost) = fastest, lane 3 = slowest
+  // EGO is in lane 1 — NO NPCs placed in lane 1 to prevent overlap
+  const LANE_SPD = [1.10, 1.00, 0.78, 0.62]; // multipliers per lane index
+
   const npcDefs = id === 'merge'
-    ? [ // lane 4 blocked by cones
-        { laneIdx: 0, z: -7,  spd: 0.60 },
-        { laneIdx: 2, z: -10, spd: 0.72 },
-        { laneIdx: 0, z: -18, spd: 0.65 },
-        { laneIdx: 1, z: -24, spd: 0.78 },
-        { laneIdx: 2, z: -30, spd: 0.82 },
+    ? [ // lane 3 blocked by cones — only lanes 0,1,2 active; skip lane 1 (ego lane)
+        { laneIdx: 0, z: -6,  spd: LANE_SPD[0] },
+        { laneIdx: 2, z: -9,  spd: LANE_SPD[2] },
+        { laneIdx: 0, z: -19, spd: LANE_SPD[0] },
+        { laneIdx: 2, z: -25, spd: LANE_SPD[2] },
       ]
     : id === 'ic'
     ? [
-        { laneIdx: 0, z: -8,  spd: 0.62 },
-        { laneIdx: 2, z: -11, spd: 0.70 },
-        { laneIdx: 3, z: -6,  spd: 0.80, ramp: true },
-        { laneIdx: 0, z: -20, spd: 0.68 },
-        { laneIdx: 1, z: -25, spd: 0.75 },
+        { laneIdx: 0, z: -6,  spd: LANE_SPD[0] },
+        { laneIdx: 2, z: -10, spd: LANE_SPD[2] },
+        { laneIdx: 3, z: -5,  spd: LANE_SPD[3], ramp: true },
+        { laneIdx: 0, z: -20, spd: LANE_SPD[0] },
+        { laneIdx: 2, z: -26, spd: LANE_SPD[2] },
       ]
     : [
-        { laneIdx: 0, z: -7,  spd: 0.60 },
-        { laneIdx: 2, z: -10, spd: 0.73 },
-        { laneIdx: 3, z: -5,  spd: 0.88 },
-        { laneIdx: 0, z: -19, spd: 0.66 },
-        { laneIdx: 1, z: -23, spd: 0.78 },
-        { laneIdx: 3, z: -29, spd: 0.92 },
+        { laneIdx: 0, z: -5,  spd: LANE_SPD[0] }, // fast lane — overtakes ego
+        { laneIdx: 0, z: -18, spd: LANE_SPD[0] },
+        { laneIdx: 2, z: -8,  spd: LANE_SPD[2] }, // slower than ego
+        { laneIdx: 2, z: -22, spd: LANE_SPD[2] },
+        { laneIdx: 3, z: -4,  spd: LANE_SPD[3] }, // slowest
+        { laneIdx: 3, z: -20, spd: LANE_SPD[3] },
       ];
 
   npcDefs.forEach((def, i) => {
@@ -531,12 +577,12 @@ function buildParticles(scene) {
 
 /* ── per-scene camera / fog config ── */
 const SCENE_CFG = {
-  highway: { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 32, fogF: 56, cam: [0, 7, 13], look: [0,  0.5, -8]  },
-  tunnel:  { bg: 0x020508, fogClr: 0x020508, fogN:  9, fogF: 28, cam: [0, 3.5, 8], look: [0,  1.8,-11]  },
-  curve:   { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 26, fogF: 50, cam:[-4, 7, 13], look: [2,  0.5,-10]  },
-  bridge:  { bg: 0x07121f, fogClr: 0x07121f, fogN: 36, fogF: 64, cam: [0, 9, 13], look: [0, -0.5, -8]  },
-  ic:      { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 30, fogF: 56, cam:[-3, 7, 13], look: [3,  0.5, -8]  },
-  merge:   { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 28, fogF: 52, cam: [2, 7, 13], look: [2,  0.5, -8]  },
+  highway: { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 32, fogF: 56, cam: [0,   7, 13], look: [0,   0.5,  -8] },
+  tunnel:  { bg: 0x1e2530, fogClr: 0x1e2530, fogN: 14, fogF: 38, cam: [0, 3.5,  8], look: [0,   1.5, -12] },
+  curve:   { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 30, fogF: 56, cam:[-7,   8, 10], look: [6,   0,   -20] },
+  bridge:  { bg: 0x07121f, fogClr: 0x07121f, fogN: 36, fogF: 64, cam: [0,   9, 13], look: [0,  -0.5,  -8] },
+  ic:      { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 30, fogF: 56, cam:[-3,   7, 13], look: [3,   0.5,  -8] },
+  merge:   { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 28, fogF: 52, cam: [2,   7, 13], look: [2,   0.5,  -8] },
 };
 
 /* ── init one scene ── */
@@ -555,13 +601,16 @@ function initScene(sec) {
   scene.background = new THREE.Color(cfg.bg);
   scene.fog = new THREE.Fog(cfg.fogClr, cfg.fogN, cfg.fogF);
 
-  const camera = new THREE.PerspectiveCamera(52, W / H, 0.1, 80);
+  const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 80);
   camera.position.set(...cfg.cam);
   camera.lookAt(...cfg.look);
 
   // Scene-specific lighting
   if (sec.id === 'tunnel') {
-    scene.add(new THREE.AmbientLight(0x0a1828, 1.8));
+    scene.add(new THREE.AmbientLight(0x8899aa, 2.4)); // brighter ambient for gray walls
+    const tDir = new THREE.DirectionalLight(0xaabbcc, 0.8);
+    tDir.position.set(0, 8, 4);
+    scene.add(tDir);
     // tunnel lights added inside buildTunnel
   } else if (sec.id === 'bridge') {
     scene.add(new THREE.AmbientLight(0x1a3060, 2.0));
@@ -580,14 +629,19 @@ function initScene(sec) {
   scene.add(egoLight);
 
   buildEnvironment(scene, sec.id);
-  buildRoadSurface(scene, sec.id);
-  const dashes = buildLaneMarkings(scene, sec.id);
 
-  if (sec.id === 'tunnel') buildTunnel(scene);
-  if (sec.id === 'bridge') buildBridge(scene);
-  if (sec.id === 'curve')  buildCurve(scene);
-  if (sec.id === 'ic')     buildIC(scene);
-  if (sec.id === 'merge')  buildMerge(scene);
+  let dashes = [];
+  if (sec.id === 'curve') {
+    // curve builds its own road geometry (no straight road surface)
+    buildCurve(scene);
+  } else {
+    buildRoadSurface(scene, sec.id);
+    dashes = buildLaneMarkings(scene, sec.id);
+    if (sec.id === 'tunnel') buildTunnel(scene);
+    if (sec.id === 'bridge') buildBridge(scene);
+    if (sec.id === 'ic')     buildIC(scene);
+    if (sec.id === 'merge')  buildMerge(scene);
+  }
 
   const st          = calcStatus(sec, speed, weather);
   const statusColor = CLR_NUM[st];
