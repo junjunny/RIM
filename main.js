@@ -586,6 +586,87 @@ function buildPiezoSensors(scene, id, statusColor) {
 ════════════════════════════════════════ */
 function buildThermalCameras(scene, id) {
   const thermals = [];
+
+  /* ── 커브 구간: 호 경로를 따라 카메라 위치 계산 ── */
+  if (id === 'curve') {
+    [{ theta: 0.22 }, { theta: 0.72 }].forEach(({ theta }, i) => {
+      const outerLx = ROAD_W / 2 + 2.2;
+      const poleX   = CURVE_ARC_R * (1 - Math.cos(theta)) + outerLx * Math.cos(theta);
+      const poleZ   = (outerLx - CURVE_ARC_R) * Math.sin(theta);
+      const rcX     = CURVE_ARC_R * (1 - Math.cos(theta));
+      const rcZ     = -CURVE_ARC_R * Math.sin(theta);
+      const camY    = 5.8;
+
+      /* 도로 접선 & 안쪽 법선 */
+      const tx = Math.sin(theta), tz = -Math.cos(theta);   // 접선 (전진 방향)
+      const nx = -Math.cos(theta), nz = -Math.sin(theta);  // 안쪽 법선
+
+      /* 폴 */
+      const pole = new THREE.Mesh(mkBox(0.12, camY, 0.12), mkMat(0x607080));
+      pole.position.set(poleX, camY / 2, poleZ); scene.add(pole);
+
+      /* 카메라 헤드 — 도로 안쪽을 향함 */
+      const camMat = new THREE.MeshLambertMaterial({ color: 0x1a2530, emissive: 0x000000 });
+      const camBox = new THREE.Mesh(mkBox(0.5, 0.3, 0.7), camMat);
+      camBox.position.set(poleX + nx * 0.2, camY, poleZ + nz * 0.2);
+      camBox.rotation.y = Math.PI / 2 - theta;
+      scene.add(camBox);
+
+      /* 렌즈 */
+      const lens = new THREE.Mesh(mkBox(0.12, 0.12, 0.04), mkMat(0x2255aa));
+      lens.position.set(poleX + nx * 0.5, camY, poleZ + nz * 0.5);
+      scene.add(lens);
+
+      /* LED */
+      const camLedMat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.8 });
+      const camLed    = new THREE.Mesh(mkBox(0.08, 0.08, 0.04), camLedMat);
+      camLed.position.set(poleX + nx * 0.5, camY + 0.18, poleZ + nz * 0.5);
+      scene.add(camLed);
+
+      /* 와이어 감지 콘 — 도로 호에 맞춰 4 모서리 계산 */
+      const zHW   = 5.5;
+      const roadHW = ROAD_W / 2 + 0.5;
+      const oex = CURVE_ARC_R * (1 - Math.cos(theta)) + roadHW * Math.cos(theta);
+      const oez = (roadHW - CURVE_ARC_R) * Math.sin(theta);
+      const iex = CURVE_ARC_R * (1 - Math.cos(theta)) - roadHW * Math.cos(theta);
+      const iez = (-roadHW - CURVE_ARC_R) * Math.sin(theta);
+      const chx = poleX + nx * 0.22, chz = poleZ + nz * 0.22;
+      const wirePoints = [
+        chx, camY, chz,   oex + tx*zHW, 0.12, oez + tz*zHW,
+        chx, camY, chz,   oex - tx*zHW, 0.12, oez - tz*zHW,
+        chx, camY, chz,   iex + tx*zHW, 0.12, iez + tz*zHW,
+        chx, camY, chz,   iex - tx*zHW, 0.12, iez - tz*zHW,
+        oex + tx*zHW, 0.12, oez + tz*zHW,   oex - tx*zHW, 0.12, oez - tz*zHW,
+        oex - tx*zHW, 0.12, oez - tz*zHW,   iex - tx*zHW, 0.12, iez - tz*zHW,
+        iex - tx*zHW, 0.12, iez - tz*zHW,   iex + tx*zHW, 0.12, iez + tz*zHW,
+        iex + tx*zHW, 0.12, iez + tz*zHW,   oex + tx*zHW, 0.12, oez + tz*zHW,
+      ];
+      const wireGeo = new THREE.BufferGeometry();
+      wireGeo.setAttribute('position', new THREE.Float32BufferAttribute(wirePoints, 3));
+      const wireMat = new THREE.LineBasicMaterial({ color: 0xff7700, transparent: true, opacity: 0.35 });
+      scene.add(new THREE.LineSegments(wireGeo, wireMat));
+
+      /* 스캔 필드 — 그룹으로 도로 접선 방향에 정렬 */
+      const fanGrp = new THREE.Group();
+      fanGrp.position.set(rcX, 0, rcZ);
+      fanGrp.rotation.y = Math.PI - theta;
+      scene.add(fanGrp);
+
+      const fanMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.05, side: THREE.DoubleSide });
+      const fan    = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W + 1, zHW * 2), fanMat);
+      fan.rotation.x = -Math.PI / 2; fan.position.set(0, 0.13, 0);
+      fanGrp.add(fan);
+
+      const scanMat = new THREE.MeshBasicMaterial({ color: 0xff9900, transparent: true, opacity: 0.55 });
+      const scanBar = new THREE.Mesh(mkBox(ROAD_W + 1, 0.03, 0.12), scanMat);
+      scanBar.position.set(0, 0.16, 0);
+      fanGrp.add(scanBar);
+
+      thermals.push({ camMat, camLedMat, wireMat, fanMat, scanMat, scanBar, z: rcZ, zHW, phase: i * 0.7, isCurve: true });
+    });
+    return thermals;
+  }
+
   const onCeil   = id === 'tunnel';
   const camX     = onCeil ? 4.2 : ROAD_W / 2 + 2.0;
   const camY     = onCeil ? 3.6 : 5.8;
@@ -843,9 +924,10 @@ function animateSim(sim, ts, dt) {
       }
     });
 
-    /* 스캔 라인 왕복 — 안개 시 빠르게 */
+    /* 스캔 라인 왕복 — 안개 시 빠르게 / 커브는 로컬 Z로 이동 */
     const scanSpd = isFog ? 2.2 : 1.2;
-    tc.scanBar.position.z = tc.z + Math.sin(ts * scanSpd + tc.phase * 2) * tc.zHW * 0.85;
+    const scanOffset = Math.sin(ts * scanSpd + tc.phase * 2) * tc.zHW * 0.85;
+    tc.scanBar.position.z = tc.isCurve ? scanOffset : tc.z + scanOffset;
 
     /* 안개 시: 열화상은 안개 관통 → 스캔필드·와이어 모두 최대 밝기로 강조 */
     const baseOp = isFog
