@@ -230,6 +230,13 @@ input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
   letter-spacing: 0.04em;
 }
 
+.v2l-sensor {
+  font-size: 0.82rem;
+  width: 9px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .v2v-desc { color: var(--muted); font-size: 0.74rem; line-height: 1.65; }
 
 /* ── SIMULATION SECTION ───────────────────── */
