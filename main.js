@@ -1,11 +1,11 @@
 /* ── DATA ─────────────────────────────────── */
 const SECTIONS = [
-  { id:'highway', name:'일반 고속도로', icon:'🛣️', speedLimit:100, thermal:'5대/km',   piezo:'없음',  hasPiezo:false },
-  { id:'tunnel',  name:'터널 진출입',   icon:'🚇', speedLimit:100, thermal:'2대/개소', piezo:'2개소', hasPiezo:true  },
-  { id:'curve',   name:'급커브 구간',   icon:'↩️', speedLimit:50,  thermal:'3대/개소', piezo:'1개소', hasPiezo:true  },
-  { id:'bridge',  name:'교량·고가도로', icon:'🌉', speedLimit:100, thermal:'3대/개소', piezo:'2개소', hasPiezo:true  },
-  { id:'ic',      name:'IC·JC 연결로', icon:'🔀', speedLimit:60,  thermal:'3대/개소', piezo:'2개소', hasPiezo:true  },
-  { id:'merge',   name:'병목·합류구간', icon:'🚦', speedLimit:80,  thermal:'3대/개소', piezo:'2개소', hasPiezo:true  }
+  { id:'highway', name:'일반 고속도로', icon:'🛣️', speedLimit:100 },
+  { id:'tunnel',  name:'터널 진출입',   icon:'🚇', speedLimit:100 },
+  { id:'curve',   name:'급커브 구간',   icon:'↩️', speedLimit:50  },
+  { id:'bridge',  name:'교량·고가도로', icon:'🌉', speedLimit:100 },
+  { id:'ic',      name:'IC·JC 연결로', icon:'🔀', speedLimit:60  },
+  { id:'merge',   name:'병목·합류구간', icon:'🚦', speedLimit:80  }
 ];
 
 const WEATHER = {
@@ -28,6 +28,7 @@ function calcStatus(sec, spd, wx) {
 
 const LABEL   = { good:'양호', caution:'주의', danger:'위험' };
 const CLR_NUM = { good:0x22c55e, caution:0xf97316, danger:0xef4444 };
+const CLR_CSS = { good:'#22c55e', caution:'#f97316', danger:'#ef4444' };
 
 function updateHUD() {
   const w = WEATHER[weather];
@@ -66,14 +67,13 @@ const clock = new THREE.Clock();
 const ROAD_W  = 10;
 const LANE_XS = [-3.75, -1.25, 1.25, 3.75];
 
-/* curve arc constants */
-const CURVE_SEG_LEN = 5.5;
-const CURVE_ANGLE_STEP = 0.18;
-const CURVE_SEGS    = 10;
-const CURVE_ARC_R   = CURVE_SEG_LEN / CURVE_ANGLE_STEP; // ≈ 30.56
+const CURVE_SEG_LEN   = 5.5;
+const CURVE_ANGLE_STP = 0.18;
+const CURVE_SEGS      = 10;
+const CURVE_ARC_R     = CURVE_SEG_LEN / CURVE_ANGLE_STP;
 
-/* speed by lane: lane 0 (left) fastest → lane 3 (right) slowest */
-const LANE_SPD = [1.10, 1.00, 0.78, 0.62];
+/* 1차선 가장 빠름, 4차선 가장 느림 */
+const LANE_SPD = [1.12, 1.00, 0.78, 0.60];
 
 /* materials */
 const MAT_ROAD     = new THREE.MeshLambertMaterial({ color: 0x1c2d4a });
@@ -94,14 +94,14 @@ const MAT_SIGN_Y   = new THREE.MeshLambertMaterial({ color: 0xddcc00 });
 function mkBox(w, h, d) { return new THREE.BoxGeometry(w, h, d); }
 function mkMat(hex)      { return new THREE.MeshLambertMaterial({ color: hex }); }
 
-/* ── 4-lane road surface ── */
+/* ── road surface ── */
 function buildRoadSurface(scene, id) {
   const mat = id === 'bridge' ? MAT_ROAD_B : id === 'tunnel' ? MAT_ROAD_T : MAT_ROAD;
-  const road = new THREE.Mesh(mkBox(ROAD_W, 0.12, 44), mat);
-  road.position.set(0, 0, -12); scene.add(road);
+  const road = new THREE.Mesh(mkBox(ROAD_W, 0.12, 60), mat);
+  road.position.set(0, 0, -20); scene.add(road);
   [-1, 1].forEach(s => {
-    const sh = new THREE.Mesh(mkBox(2.8, 0.1, 44), MAT_SHOULDER);
-    sh.position.set(s * (ROAD_W / 2 + 1.4), 0.005, -12); scene.add(sh);
+    const sh = new THREE.Mesh(mkBox(2.8, 0.1, 60), MAT_SHOULDER);
+    sh.position.set(s * (ROAD_W / 2 + 1.4), 0.005, -20); scene.add(sh);
   });
 }
 
@@ -111,14 +111,14 @@ function buildLaneMarkings(scene, id) {
   const dashGeo = mkBox(0.1, 0.015, 2.2);
   [-2.5, 0, 2.5].forEach(x => {
     const mat = (id === 'merge' && x === 2.5) ? mkMat(0xf97316) : MAT_LANE;
-    for (let z = -34; z < 14; z += 5) {
+    for (let z = -50; z < 14; z += 5) {
       const m = new THREE.Mesh(dashGeo, mat);
       m.position.set(x, 0.075, z); scene.add(m); dashes.push(m);
     }
   });
   [-5, 5].forEach(x => {
-    const e = new THREE.Mesh(mkBox(0.12, 0.015, 44), MAT_LANE);
-    e.position.set(x, 0.075, -12); scene.add(e);
+    const e = new THREE.Mesh(mkBox(0.12, 0.015, 60), MAT_LANE);
+    e.position.set(x, 0.075, -20); scene.add(e);
   });
   return dashes;
 }
@@ -126,22 +126,22 @@ function buildLaneMarkings(scene, id) {
 /* ── TUNNEL ── */
 function buildTunnel(scene) {
   [-1, 1].forEach(s => {
-    const wall = new THREE.Mesh(mkBox(0.5, 4.5, 38), MAT_TUNNEL);
-    wall.position.set(s * (ROAD_W / 2 + 0.95), 2.1, -13); scene.add(wall);
-    for (let z = -4; z >= -30; z -= 3.8) {
+    const wall = new THREE.Mesh(mkBox(0.5, 4.5, 56), MAT_TUNNEL);
+    wall.position.set(s * (ROAD_W / 2 + 0.95), 2.1, -20); scene.add(wall);
+    for (let z = -4; z >= -44; z -= 3.8) {
       const tile = new THREE.Mesh(mkBox(0.05, 0.07, 3.3), new THREE.MeshBasicMaterial({ color: 0x6a7888 }));
       tile.position.set(s * (ROAD_W / 2 + 0.68), 1.6, z); scene.add(tile);
     }
   });
-  const ceil = new THREE.Mesh(mkBox(ROAD_W + 2.4, 0.55, 38), MAT_TUNNEL);
-  ceil.position.set(0, 4.27, -13); scene.add(ceil);
+  const ceil = new THREE.Mesh(mkBox(ROAD_W + 2.4, 0.55, 56), MAT_TUNNEL);
+  ceil.position.set(0, 4.27, -20); scene.add(ceil);
   const fTop = new THREE.Mesh(mkBox(ROAD_W + 3.5, 0.9, 0.5), mkMat(0x4a5460));
   fTop.position.set(0, 4.7, -0.8); scene.add(fTop);
   [-1, 1].forEach(s => {
     const fp = new THREE.Mesh(mkBox(0.55, 4.7, 0.5), mkMat(0x4a5460));
     fp.position.set(s * (ROAD_W / 2 + 1.2), 2.35, -0.8); scene.add(fp);
   });
-  for (let z = -5; z >= -28; z -= 4.5) {
+  for (let z = -5; z >= -42; z -= 4.5) {
     const strip = new THREE.Mesh(mkBox(0.22, 0.06, 1.1), new THREE.MeshBasicMaterial({ color: 0xbbd8ff }));
     strip.position.set(0, 3.96, z); scene.add(strip);
     const l = new THREE.PointLight(0x7799cc, 1.1, 9);
@@ -149,36 +149,77 @@ function buildTunnel(scene) {
   }
 }
 
-/* ── BRIDGE ── */
+/* ── BRIDGE ── cable-stayed, visible towers + stay cables + sea below */
 function buildBridge(scene) {
+  /* guardrails with posts */
   [-1, 1].forEach(s => {
-    const x = s * (ROAD_W / 2 + 0.25);
-    const topRail = new THREE.Mesh(mkBox(0.12, 0.14, 44), MAT_RAIL);
-    topRail.position.set(x, 1.2, -12); scene.add(topRail);
-    const midRail = new THREE.Mesh(mkBox(0.08, 0.08, 44), MAT_RAIL);
-    midRail.position.set(x, 0.65, -12); scene.add(midRail);
-    for (let z = -1; z >= -33; z -= 2.8) {
-      const post = new THREE.Mesh(mkBox(0.1, 1.3, 0.1), MAT_RAIL);
-      post.position.set(x, 0.62, z); scene.add(post);
+    const x = s * (ROAD_W / 2 + 0.28);
+    const topR = new THREE.Mesh(mkBox(0.13, 0.15, 60), MAT_RAIL);
+    topR.position.set(x, 1.35, -20); scene.add(topR);
+    const botR = new THREE.Mesh(mkBox(0.08, 0.08, 60), MAT_RAIL);
+    botR.position.set(x, 0.68, -20); scene.add(botR);
+    for (let z = -1; z >= -46; z -= 2.0) {
+      const post = new THREE.Mesh(mkBox(0.09, 1.4, 0.09), MAT_RAIL);
+      post.position.set(x, 0.68, z); scene.add(post);
     }
   });
-  [-7, -23].forEach(z => {
-    [-1, 1].forEach(s => {
-      const tower = new THREE.Mesh(mkBox(0.6, 9, 0.6), MAT_PILLAR);
-      tower.position.set(s * 6, -3.9, z); scene.add(tower);
+
+  /* cable-stayed pylons at z=-10 and z=-34 */
+  [
+    { pz: -10, deckZs: [4, 0, -4, -8, -14, -20, -27] },
+    { pz: -34, deckZs: [-28, -22, -16, -34, -40, -46, -52] }
+  ].forEach(({ pz, deckZs }) => {
+    [-5.8, 5.8].forEach(px => {
+      const shaft = new THREE.Mesh(mkBox(0.68, 18, 0.68), MAT_PILLAR);
+      shaft.position.set(px, 8.0, pz); scene.add(shaft);
+      const cap = new THREE.Mesh(mkBox(1.1, 0.55, 1.1), mkMat(0x162840));
+      cap.position.set(px, 17.2, pz); scene.add(cap);
     });
-    const xBeam = new THREE.Mesh(mkBox(13, 0.4, 0.55), MAT_PILLAR);
-    xBeam.position.set(0, -0.2, z); scene.add(xBeam);
+    /* cross strut */
+    const strut = new THREE.Mesh(mkBox(12.8, 0.5, 0.65), MAT_PILLAR);
+    strut.position.set(0, 5.5, pz); scene.add(strut);
+
+    /* stay cables as line segments */
+    const pts = [];
+    deckZs.forEach(dz => {
+      [-5.8, 5.8].forEach(px => {
+        pts.push(px, 16.8, pz,  px * 0.82, 0.22, dz);
+      });
+    });
+    const cGeo = new THREE.BufferGeometry();
+    cGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    scene.add(new THREE.LineSegments(cGeo,
+      new THREE.LineBasicMaterial({ color: 0x4a7ab0, transparent: true, opacity: 0.72 })));
   });
-  [-6, -15, -24].forEach(z => {
-    const joint = new THREE.Mesh(mkBox(ROAD_W, 0.02, 0.14), mkMat(0x060c18));
-    joint.position.set(0, 0.13, z); scene.add(joint);
+
+  /* box-girder under deck */
+  const girder = new THREE.Mesh(mkBox(ROAD_W + 0.9, 0.9, 62), mkMat(0x1a2e4e));
+  girder.position.set(0, -0.58, -20); scene.add(girder);
+
+  /* piers from sea to deck */
+  [-10, -22, -34].forEach(z => {
+    const pier = new THREE.Mesh(mkBox(1.5, 12, 1.5), mkMat(0x172540));
+    pier.position.set(0, -6.5, z); scene.add(pier);
+    /* pier crosshead */
+    const head = new THREE.Mesh(mkBox(4.5, 0.6, 1.6), mkMat(0x1a2f50));
+    head.position.set(0, 0.1, z); scene.add(head);
   });
-  const void_ = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), mkMat(0x05101e));
-  void_.rotation.x = -Math.PI / 2; void_.position.y = -6.5; scene.add(void_);
+
+  /* expansion joints */
+  [-8, -18, -28, -38].forEach(z => {
+    const j = new THREE.Mesh(mkBox(ROAD_W, 0.02, 0.16), mkMat(0x050b18));
+    j.position.set(0, 0.13, z); scene.add(j);
+  });
+
+  /* sea surface */
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(130, 130), mkMat(0x071828));
+  sea.rotation.x = -Math.PI / 2; sea.position.y = -13; scene.add(sea);
+  const shimmer = new THREE.Mesh(new THREE.PlaneGeometry(90, 50),
+    new THREE.MeshBasicMaterial({ color: 0x0e2d48, transparent: true, opacity: 0.55 }));
+  shimmer.rotation.x = -Math.PI / 2; shimmer.position.set(0, -12.6, -20); scene.add(shimmer);
 }
 
-/* ── CURVE — builds the entire curved road geometry ── */
+/* ── CURVE ── */
 function buildCurve(scene) {
   let px = 0, pz = 0, angle = 0;
   for (let i = 0; i < CURVE_SEGS; i++) {
@@ -186,52 +227,39 @@ function buildCurve(scene) {
     const rx  = Math.cos(angle), rz = Math.sin(angle);
     const cx  = px + Math.sin(angle) * CURVE_SEG_LEN / 2;
     const cz  = pz - Math.cos(angle) * CURVE_SEG_LEN / 2;
-
     const seg = new THREE.Mesh(mkBox(ROAD_W + 0.3, 0.12, CURVE_SEG_LEN + 0.2), MAT_ROAD);
     seg.position.set(cx, 0, cz); seg.rotation.y = rot; scene.add(seg);
-
     [-1, 1].forEach(s => {
       const sh = new THREE.Mesh(mkBox(2.8, 0.1, CURVE_SEG_LEN + 0.2), MAT_SHOULDER);
       sh.position.set(cx + s * (ROAD_W / 2 + 1.4) * rx, 0.005, cz + s * (ROAD_W / 2 + 1.4) * rz);
       sh.rotation.y = rot; scene.add(sh);
-
       const e = new THREE.Mesh(mkBox(0.12, 0.015, CURVE_SEG_LEN + 0.2), MAT_LANE);
       e.position.set(cx + s * (ROAD_W / 2) * rx, 0.077, cz + s * (ROAD_W / 2) * rz);
       e.rotation.y = rot; scene.add(e);
     });
-
     [-2.5, 0, 2.5].forEach(lx => {
       const d = new THREE.Mesh(mkBox(0.1, 0.015, CURVE_SEG_LEN - 1.8), MAT_LANE);
       d.position.set(cx + lx * rx, 0.077, cz + lx * rz); d.rotation.y = rot; scene.add(d);
     });
-
-    // outer guardrail (right = outside of curve)
     const gr = new THREE.Mesh(mkBox(0.16, 0.55, CURVE_SEG_LEN + 0.2), MAT_RAIL);
     gr.position.set(cx + (ROAD_W / 2 + 0.45) * rx, 0.32, cz + (ROAD_W / 2 + 0.45) * rz);
     gr.rotation.y = rot; scene.add(gr);
-
-    // chevron delineator post
     const chX = cx + (ROAD_W / 2 + 1.25) * rx, chZ = cz + (ROAD_W / 2 + 1.25) * rz;
     const post = new THREE.Mesh(mkBox(0.22, 1.4, 0.22), MAT_CHEVRON);
     post.position.set(chX, 0.72, chZ); scene.add(post);
     const band = new THREE.Mesh(mkBox(0.26, 0.25, 0.26), MAT_BARRIER);
     band.position.set(chX, 1.12, chZ); scene.add(band);
-
-    // inner curb (left = inside of curve)
     const curb = new THREE.Mesh(mkBox(0.32, 0.26, CURVE_SEG_LEN + 0.2), mkMat(0x4a5a68));
     curb.position.set(cx - (ROAD_W / 2 + 0.5) * rx, 0.14, cz - (ROAD_W / 2 + 0.5) * rz);
     curb.rotation.y = rot; scene.add(curb);
-
     px += Math.sin(angle) * CURVE_SEG_LEN;
     pz -= Math.cos(angle) * CURVE_SEG_LEN;
-    angle += CURVE_ANGLE_STEP;
+    angle += CURVE_ANGLE_STP;
   }
-
   const hill = new THREE.Mesh(mkBox(8, 4, 50), mkMat(0x0c2810));
   hill.position.set(-14, 1.8, -15); scene.add(hill);
   const hillFace = new THREE.Mesh(mkBox(0.4, 4, 50), mkMat(0x183a20));
   hillFace.position.set(-9.5, 1.8, -15); scene.add(hillFace);
-
   [{ z: -3, x: 8.5 }, { z: -14, x: 10.5 }].forEach(({ z, x }) => {
     const wp = new THREE.Mesh(mkBox(0.09, 2.1, 0.09), mkMat(0x888888));
     wp.position.set(x, 1.05, z); scene.add(wp);
@@ -240,66 +268,143 @@ function buildCurve(scene) {
   });
 }
 
-/* ── IC ── */
+/* ── IC ── fork: main road + ramp clearly splitting off right */
 function buildIC(scene) {
-  const gBar = new THREE.Mesh(mkBox(ROAD_W + 3, 0.24, 0.32), mkMat(0x304050));
-  gBar.position.set(0, 5.2, -5.5); scene.add(gBar);
+  /* overhead gantry frame */
+  const gBar = new THREE.Mesh(mkBox(ROAD_W + 3.5, 0.24, 0.32), mkMat(0x304050));
+  gBar.position.set(0, 5.3, -5.5); scene.add(gBar);
   [-1, 1].forEach(s => {
-    const gLeg = new THREE.Mesh(mkBox(0.24, 5.4, 0.32), mkMat(0x304050));
-    gLeg.position.set(s * (ROAD_W / 2 + 1.2), 2.7, -5.5); scene.add(gLeg);
+    const gLeg = new THREE.Mesh(mkBox(0.24, 5.5, 0.32), mkMat(0x304050));
+    gLeg.position.set(s * (ROAD_W / 2 + 1.3), 2.75, -5.5); scene.add(gLeg);
   });
-  const sign = new THREE.Mesh(mkBox(3.2, 1.0, 0.18), MAT_SIGN_G);
-  sign.position.set(3.6, 4.72, -5.35); scene.add(sign);
-  const ramp = new THREE.Mesh(mkBox(4.0, 0.12, 22), mkMat(0x1c2d4a));
-  ramp.rotation.y = -0.36; ramp.position.set(9.5, 0, -15); scene.add(ramp);
-  for (let i = 0; i < 5; i++) {
-    const b = new THREE.Mesh(mkBox(0.55, 0.85, 0.55), i % 2 === 0 ? mkMat(0xffcc00) : mkMat(0x111111));
-    b.position.set(5.5 + i * 0.6, 0.44, -7.5); scene.add(b);
+
+  /* green exit sign (right) */
+  const exitSign = new THREE.Mesh(mkBox(3.6, 1.1, 0.2), MAT_SIGN_G);
+  exitSign.position.set(3.0, 4.75, -5.35); scene.add(exitSign);
+  /* diagonal arrow → exit */
+  const ea1 = new THREE.Mesh(mkBox(1.0, 0.17, 0.06), mkMat(0xffffff));
+  ea1.position.set(0.4, 0.08, 0.14); exitSign.add(ea1);
+  const ea2 = new THREE.Mesh(mkBox(0.55, 0.17, 0.06), mkMat(0xffffff));
+  ea2.rotation.z = -0.55; ea2.position.set(1.1, -0.2, 0.14); exitSign.add(ea2);
+
+  /* green straight sign (left — 직진) */
+  const mainSign = new THREE.Mesh(mkBox(2.8, 1.1, 0.2), MAT_SIGN_G);
+  mainSign.position.set(-2.2, 4.75, -5.35); scene.add(mainSign);
+  const ma = new THREE.Mesh(mkBox(0.17, 0.85, 0.06), mkMat(0xffffff));
+  ma.position.set(0, 0.05, 0.14); mainSign.add(ma);
+  const mah = new THREE.Mesh(mkBox(0.6, 0.17, 0.06), mkMat(0xffffff));
+  mah.position.set(0, 0.52, 0.14); mainSign.add(mah);
+
+  /* gore nose — yellow hatch where split begins */
+  for (let i = 0; i < 9; i++) {
+    const chev = new THREE.Mesh(mkBox(2.9, 0.013, 0.4),
+      i % 2 === 0 ? MAT_CHEVRON : new THREE.MeshBasicMaterial({ color: 0x222222 }));
+    chev.position.set(4.7, 0.077, -7.5 - i * 0.52);
+    chev.rotation.y = 0.42; scene.add(chev);
   }
-  for (let i = 0; i < 6; i++) {
-    const r = new THREE.Mesh(mkBox(0.13, 0.5, 3.5), MAT_RAIL);
-    r.rotation.y = -0.36; r.position.set(8.0 + i * 0.45, 0.3, -10 - i * 2.8); scene.add(r);
+
+  /* bollards at split point */
+  for (let i = 0; i < 8; i++) {
+    const t = i / 7;
+    const b = new THREE.Mesh(mkBox(0.22, 0.95, 0.22),
+      i % 2 === 0 ? mkMat(0xffcc00) : mkMat(0x111111));
+    b.position.set(5.3 - t * 0.5, 0.48, -7.2 - i * 1.3); scene.add(b);
   }
-  for (let z = -3; z >= -11; z -= 3.5) {
-    const chev = new THREE.Mesh(mkBox(2.2, 0.013, 0.55), MAT_CHEVRON);
-    chev.position.set(3.75, 0.077, z); chev.rotation.y = 0.32; scene.add(chev);
+
+  /* ramp surface — wide, clearly angled */
+  const ramp = new THREE.Mesh(mkBox(5.2, 0.12, 30), mkMat(0x1c2d4a));
+  ramp.rotation.y = -0.42; ramp.position.set(11.5, 0, -17); scene.add(ramp);
+  /* ramp shoulder */
+  const rampSh = new THREE.Mesh(mkBox(1.5, 0.1, 30), mkMat(0x0f1e30));
+  rampSh.rotation.y = -0.42; rampSh.position.set(14.6, 0.005, -17); scene.add(rampSh);
+  /* ramp left edge line */
+  const rampEdge = new THREE.Mesh(mkBox(0.12, 0.015, 30), MAT_LANE);
+  rampEdge.rotation.y = -0.42; rampEdge.position.set(9.0, 0.078, -17); scene.add(rampEdge);
+
+  /* ramp lane centre dashes */
+  for (let i = 0; i < 7; i++) {
+    const dash = new THREE.Mesh(mkBox(0.1, 0.015, 2.2), MAT_LANE);
+    dash.rotation.y = -0.42;
+    dash.position.set(9.5 + i * 1.65, 0.078, -8 - i * 3.8); scene.add(dash);
+  }
+
+  /* ramp guardrail */
+  const rRail = new THREE.Mesh(mkBox(0.11, 0.13, 30), MAT_RAIL);
+  rRail.rotation.y = -0.42; rRail.position.set(14.3, 0.72, -18); scene.add(rRail);
+  for (let i = 0; i < 9; i++) {
+    const rp = new THREE.Mesh(mkBox(0.09, 1.35, 0.09), MAT_RAIL);
+    rp.rotation.y = -0.42; rp.position.set(14.0 + i * 0.55, 0.68, -10 - i * 2.9); scene.add(rp);
   }
 }
 
-/* ── MERGE ── */
+/* ── MERGE ── funnel: right lane closes, cones + barriers diagonal, overhead VMS */
 function buildMerge(scene) {
-  for (let i = 0; i < 11; i++) {
-    const x = 5.2 - (i / 10) * 2.0, z = -3 - i * 2.4;
-    const bar = new THREE.Mesh(mkBox(0.45, 0.9, 1.2), MAT_BARRIER);
-    bar.position.set(x, 0.46, z); scene.add(bar);
+  /* overhead VMS gantry */
+  [-1, 1].forEach(s => {
+    const pole = new THREE.Mesh(mkBox(0.14, 5.6, 0.14), mkMat(0x607080));
+    pole.position.set(s * (ROAD_W / 2 + 0.5), 2.8, -4.5); scene.add(pole);
+  });
+  const gBar = new THREE.Mesh(mkBox(ROAD_W + 0.7, 0.22, 0.22), mkMat(0x607080));
+  gBar.position.set(0, 5.6, -4.5); scene.add(gBar);
+  const vms = new THREE.Mesh(mkBox(7.0, 1.2, 0.24), MAT_SIGN_Y);
+  vms.position.set(0, 5.6, -4.5); scene.add(vms);
+  /* 합류 화살표 3개 on VMS */
+  [-2.2, 0, 2.2].forEach(sx => {
+    const stem = new THREE.Mesh(mkBox(0.15, 0.75, 0.06), mkMat(0x111111));
+    stem.position.set(sx, 0, 0.15); vms.add(stem);
+    const head = new THREE.Mesh(mkBox(0.65, 0.15, 0.06), mkMat(0x111111));
+    head.position.set(sx, 0.48, 0.15); vms.add(head);
+  });
+
+  /* diagonal barrier wall — sweeps inward as lane closes */
+  const N = 14;
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    const bx = 5.2 - t * 1.9;
+    const bz = -3.0 - i * 2.4;
+    const bar = new THREE.Mesh(mkBox(0.45, 0.9, 1.25), MAT_BARRIER);
+    bar.position.set(bx, 0.46, bz); scene.add(bar);
     if (i % 2 === 0) {
-      const stripe = new THREE.Mesh(mkBox(0.48, 0.18, 1.22), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-      stripe.position.set(x, 0.62, z); scene.add(stripe);
+      const stripe = new THREE.Mesh(mkBox(0.48, 0.18, 1.27),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      stripe.position.set(bx, 0.62, bz); scene.add(stripe);
     }
   }
-  for (let z = -1.5; z >= -22; z -= 3.2) {
-    const base = new THREE.Mesh(mkBox(0.38, 0.05, 0.38), mkMat(0x1a1a1a));
-    base.position.set(3.75, 0.03, z); scene.add(base);
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.75, 6), MAT_CONE);
-    cone.position.set(3.75, 0.42, z); scene.add(cone);
-    const stripe = new THREE.Mesh(mkBox(0.4, 0.12, 0.4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    stripe.position.set(3.75, 0.6, z); scene.add(stripe);
+
+  /* traffic cones — funnel row leading into barriers */
+  for (let i = 0; i < 12; i++) {
+    const t = i / 11;
+    const cx = 4.0 - t * 1.2;
+    const cz = -0.5 - i * 2.8;
+    const base = new THREE.Mesh(mkBox(0.36, 0.05, 0.36), mkMat(0x1a1a1a));
+    base.position.set(cx, 0.03, cz); scene.add(base);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.72, 6), MAT_CONE);
+    cone.position.set(cx, 0.41, cz); scene.add(cone);
+    const band = new THREE.Mesh(mkBox(0.38, 0.11, 0.38),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    band.position.set(cx, 0.58, cz); scene.add(band);
   }
-  const arrow = new THREE.Mesh(mkBox(2.8, 0.013, 0.75), MAT_CHEVRON);
-  arrow.position.set(1.25, 0.077, -9); arrow.rotation.y = -0.42; scene.add(arrow);
+
+  /* road surface merge arrows (painted) */
+  [{ z: -8, x: 2.0, r: -0.44 }, { z: -17, x: 1.5, r: -0.32 }].forEach(({ z, x, r }) => {
+    const shaft = new THREE.Mesh(mkBox(3.2, 0.013, 0.72), MAT_CHEVRON);
+    shaft.position.set(x, 0.077, z); shaft.rotation.y = r; scene.add(shaft);
+    const tip = new THREE.Mesh(mkBox(1.3, 0.013, 0.72), MAT_CHEVRON);
+    tip.position.set(x + 0.85, 0.077, z - 0.75); tip.rotation.y = r + 0.58; scene.add(tip);
+  });
 }
 
 /* ── ENVIRONMENT ── */
 function buildEnvironment(scene, id) {
   if (id === 'tunnel') {
-    const floor = new THREE.Mesh(mkBox(30, 0.1, 44), mkMat(0x040810));
-    floor.position.set(0, -0.1, -12); scene.add(floor); return;
+    const floor = new THREE.Mesh(mkBox(30, 0.1, 60), mkMat(0x040810));
+    floor.position.set(0, -0.1, -20); scene.add(floor); return;
   }
   if (id === 'bridge') return;
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), MAT_GRASS);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), MAT_GRASS);
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.09; scene.add(ground);
   if (id === 'highway') {
-    [[-13,-18],[-15,-26],[-14,-33],[13,-15],[15,-24],[14,-32]].forEach(([x, z]) => {
+    [[-13,-18],[-15,-26],[-14,-36],[13,-15],[15,-24],[14,-34],[-13,-44],[13,-42]].forEach(([x, z]) => {
       const trunk = new THREE.Mesh(mkBox(0.45, 2.8, 0.45), mkMat(0x18100a));
       trunk.position.set(x, 1.4, z); scene.add(trunk);
       const top = new THREE.Mesh(mkBox(2.8, 4.0, 2.8), mkMat(0x082010));
@@ -312,80 +417,77 @@ function buildEnvironment(scene, id) {
 function buildCars(scene, id, statusColor) {
   const cars = [];
 
-  // EGO car
+  /* EGO car — 주황색, 1차선 옆 2번 차선에서 실제로 달림 */
   const egoMat = new THREE.MeshLambertMaterial({ color: 0xf97316, emissive: 0x301000 });
   const ego    = new THREE.Mesh(mkBox(1.5, 0.62, 2.7), egoMat);
 
   if (id === 'curve') {
-    // place ego on the arc at theta=0.05 (just entered curve)
-    const egoTheta = 0.05;
+    const egoTheta = 0.12;
     const lx = LANE_XS[1];
     ego.position.set(
       CURVE_ARC_R * (1 - Math.cos(egoTheta)) + lx * Math.cos(egoTheta),
-      0.38,
-      (lx - CURVE_ARC_R) * Math.sin(egoTheta)
+      0.38, (lx - CURVE_ARC_R) * Math.sin(egoTheta)
     );
     ego.rotation.y = Math.PI - egoTheta;
   } else {
-    ego.position.set(LANE_XS[1], 0.38, -1);
+    ego.position.set(LANE_XS[1], 0.38, -4);
   }
   scene.add(ego);
   const roof = new THREE.Mesh(mkBox(1.05, 0.08, 1.25), new THREE.MeshBasicMaterial({ color: 0xff9f43 }));
   roof.position.y = 0.37; ego.add(roof);
-  cars.push({ mesh: ego, isEgo: true });
+  /* EGO 전조등 */
+  [-0.44, 0.44].forEach(hx => {
+    const hl = new THREE.Mesh(mkBox(0.2, 0.14, 0.04), new THREE.MeshBasicMaterial({ color: 0xffffcc }));
+    hl.position.set(hx, -0.06, 1.37); ego.add(hl);
+  });
+  /* EGO 후미등 */
+  const egotail = new THREE.Mesh(mkBox(1.05, 0.12, 0.04), new THREE.MeshBasicMaterial({ color: 0xff3300 }));
+  egotail.position.set(0, -0.12, -1.37); ego.add(egotail);
+  cars.push({ mesh: ego, isEgo: true, laneX: LANE_XS[1], speed: 1.0, speedVar: 0, swayPhase: 0,
+               curveAngle: id === 'curve' ? 0.12 : undefined });
 
-  // NPC definitions — EGO is in lane 1, never place NPCs there
+  /* NPC 정의 — EGO가 있는 1번 차선(laneIdx:1)에는 배치 안 함 */
   let npcDefs;
   if (id === 'merge') {
     npcDefs = [
-      { laneIdx: 0, z: -6,  spd: LANE_SPD[0] },
-      { laneIdx: 2, z: -9,  spd: LANE_SPD[2] },
-      { laneIdx: 0, z: -20, spd: LANE_SPD[0] },
-      { laneIdx: 2, z: -26, spd: LANE_SPD[2] },
+      { laneIdx:0, z:-8,  spd:LANE_SPD[0] }, { laneIdx:0, z:-22, spd:LANE_SPD[0] },
+      { laneIdx:2, z:-5,  spd:LANE_SPD[2] }, { laneIdx:2, z:-18, spd:LANE_SPD[2] },
+      { laneIdx:2, z:-34, spd:LANE_SPD[2] },
     ];
   } else if (id === 'ic') {
     npcDefs = [
-      { laneIdx: 0, z: -6,  spd: LANE_SPD[0] },
-      { laneIdx: 2, z: -10, spd: LANE_SPD[2] },
-      { laneIdx: 3, z: -5,  spd: LANE_SPD[3], ramp: true },
-      { laneIdx: 0, z: -20, spd: LANE_SPD[0] },
-      { laneIdx: 2, z: -26, spd: LANE_SPD[2] },
+      { laneIdx:0, z:-6,  spd:LANE_SPD[0] }, { laneIdx:0, z:-22, spd:LANE_SPD[0] },
+      { laneIdx:2, z:-9,  spd:LANE_SPD[2] }, { laneIdx:2, z:-28, spd:LANE_SPD[2] },
+      { laneIdx:3, z:-5,  spd:LANE_SPD[3], ramp:true },
     ];
   } else if (id === 'curve') {
-    // positions are arc angles (theta), placed visibly along the curve
     npcDefs = [
-      { laneIdx: 0, theta: 0.18, spd: LANE_SPD[0] },
-      { laneIdx: 2, theta: 0.45, spd: LANE_SPD[2] },
-      { laneIdx: 3, theta: 0.20, spd: LANE_SPD[3] },
-      { laneIdx: 0, theta: 0.80, spd: LANE_SPD[0] },
-      { laneIdx: 2, theta: 1.05, spd: LANE_SPD[2] },
+      { laneIdx:0, theta:0.25, spd:LANE_SPD[0] }, { laneIdx:0, theta:0.85, spd:LANE_SPD[0] },
+      { laneIdx:2, theta:0.50, spd:LANE_SPD[2] }, { laneIdx:2, theta:1.10, spd:LANE_SPD[2] },
+      { laneIdx:3, theta:0.30, spd:LANE_SPD[3] },
     ];
   } else {
     npcDefs = [
-      { laneIdx: 0, z: -5,  spd: LANE_SPD[0] },
-      { laneIdx: 0, z: -19, spd: LANE_SPD[0] },
-      { laneIdx: 2, z: -8,  spd: LANE_SPD[2] },
-      { laneIdx: 2, z: -23, spd: LANE_SPD[2] },
-      { laneIdx: 3, z: -4,  spd: LANE_SPD[3] },
-      { laneIdx: 3, z: -21, spd: LANE_SPD[3] },
+      { laneIdx:0, z:-5,  spd:LANE_SPD[0] }, { laneIdx:0, z:-20, spd:LANE_SPD[0] },
+      { laneIdx:0, z:-36, spd:LANE_SPD[0] },
+      { laneIdx:2, z:-8,  spd:LANE_SPD[2] }, { laneIdx:2, z:-25, spd:LANE_SPD[2] },
+      { laneIdx:3, z:-3,  spd:LANE_SPD[3] }, { laneIdx:3, z:-18, spd:LANE_SPD[3] },
+      { laneIdx:3, z:-34, spd:LANE_SPD[3] },
     ];
   }
 
   npcDefs.forEach((def, i) => {
     const lx     = LANE_XS[def.laneIdx];
     const mat    = new THREE.MeshLambertMaterial({ color: statusColor, emissive: 0x080808 });
-    const isTruck = i % 4 === 0;
-    const h      = isTruck ? 1.0 : 0.58;
-    const len    = isTruck ? 3.5 : 2.3;
-    const npc    = new THREE.Mesh(mkBox(1.4, h, len), mat);
+    const isTruck = i % 5 === 0;
+    const h = isTruck ? 1.0 : 0.58, len = isTruck ? 3.5 : 2.3;
+    const npc = new THREE.Mesh(mkBox(1.4, h, len), mat);
 
     if (id === 'curve') {
-      // place on arc using theta
       const theta = def.theta;
       npc.position.set(
         CURVE_ARC_R * (1 - Math.cos(theta)) + lx * Math.cos(theta),
-        h / 2 + 0.07,
-        (lx - CURVE_ARC_R) * Math.sin(theta)
+        h / 2 + 0.07, (lx - CURVE_ARC_R) * Math.sin(theta)
       );
       npc.rotation.y = Math.PI - theta;
     } else {
@@ -394,18 +496,18 @@ function buildCars(scene, id, statusColor) {
     }
     scene.add(npc);
 
-    // headlights
     [-0.44, 0.44].forEach(hx => {
-      const hl = new THREE.Mesh(mkBox(0.2, 0.14, 0.04), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      const hl = new THREE.Mesh(mkBox(0.2, 0.14, 0.04), new THREE.MeshBasicMaterial({ color: 0xffffcc }));
       hl.position.set(hx, -0.06, len / 2 + 0.02); npc.add(hl);
     });
-    // tail lights
     const tail = new THREE.Mesh(mkBox(1.05, 0.12, 0.04), new THREE.MeshBasicMaterial({ color: 0xff2200 }));
     tail.position.set(0, -0.12, -(len / 2 + 0.02)); npc.add(tail);
 
     cars.push({
       mesh: npc, isEgo: false, laneX: lx, speed: def.spd, mat,
       ramp: !!def.ramp,
+      speedVar:  (Math.random() - 0.5) * 0.10,  // ±5% 개인 속도 편차
+      swayPhase: Math.random() * Math.PI * 2,    // 차선 내 미세 흔들림
       curveAngle: def.theta !== undefined ? def.theta : undefined,
     });
   });
@@ -413,91 +515,140 @@ function buildCars(scene, id, statusColor) {
   return cars;
 }
 
-/* ── PIEZO SENSORS (압전 센서) ── */
+/* ════════════════════════════════════════
+   V2I 압전 센서 — 직관적 디자인
+   - 도로 폭 전체를 가로지르는 노란 경고 라인 3개
+   - 차선별 활성화 글로우 패널
+   - 노변 RSU 박스 + LED 지시등
+   - 차량 감지 시 수직 데이터 빔 상승
+════════════════════════════════════════ */
 function buildPiezoSensors(scene, id, statusColor) {
-  if (id === 'highway') return []; // highway: thermal only
+  if (id === 'highway') return [];
 
-  const sensors = [];
-  // Sensor stations every ~7 units; skip lane 3 for merge
-  const sensZ = [-6, -13, -20];
+  const sensors  = [];
+  const stationZ = [-8, -20, -34]; // 3개소, 12~14 단위 간격
 
-  LANE_XS.forEach((lx, li) => {
-    if (id === 'merge' && li === 3) return;
-    sensZ.forEach((z, zi) => {
-      // Sensor housing pad
-      const housing = new THREE.Mesh(mkBox(0.55, 0.013, 0.55), mkMat(0x253545));
-      housing.position.set(lx, 0.063, z); scene.add(housing);
+  stationZ.forEach((z, zi) => {
+    /* 전체 도로 폭 노란 경고 줄 3개 */
+    for (let k = 0; k < 3; k++) {
+      const sz = z + (k - 1) * 0.45;
+      const stripe = new THREE.Mesh(mkBox(ROAD_W, 0.014, 0.2), mkMat(0xeecc00));
+      stripe.position.set(0, 0.064, sz); scene.add(stripe);
+    }
 
-      // Glow indicator (PlaneGeometry on road surface)
+    /* 노변 RSU 박스 (오른쪽 갓길) */
+    const rsuBox = new THREE.Mesh(mkBox(0.5, 0.7, 0.5), mkMat(0x1e3050));
+    rsuBox.position.set(ROAD_W / 2 + 1.6, 0.37, z); scene.add(rsuBox);
+    /* RSU LED (평소 꺼짐, 감지 시 on) */
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x00ff44, transparent: true, opacity: 0.3 });
+    const led    = new THREE.Mesh(mkBox(0.18, 0.1, 0.06), ledMat);
+    led.position.set(ROAD_W / 2 + 1.6, 0.76, z); scene.add(led);
+
+    /* 차선별 글로우 패널 + 데이터 빔 */
+    const laneList = id === 'merge' ? [0, 1, 2] : [0, 1, 2, 3];
+    laneList.forEach(li => {
+      const lx = LANE_XS[li];
+
+      /* 차선 활성화 글로우 (전체 차선 폭) */
       const glowMat = new THREE.MeshBasicMaterial({
-        color: statusColor, transparent: true, opacity: 0.08, side: THREE.DoubleSide
+        color: statusColor, transparent: true, opacity: 0.06, side: THREE.DoubleSide
       });
-      const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.45), glowMat);
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), glowMat);
       glow.rotation.x = -Math.PI / 2;
       glow.position.set(lx, 0.068, z); scene.add(glow);
 
-      // Vertical data pulse beam (rises when car triggers sensor)
+      /* 수직 데이터 빔 */
       const pulseMat = new THREE.MeshBasicMaterial({
         color: statusColor, transparent: true, opacity: 0
       });
-      const pulse = new THREE.Mesh(mkBox(0.08, 0.8, 0.08), pulseMat);
-      pulse.position.set(lx, 0.45, z); scene.add(pulse);
+      const pulse = new THREE.Mesh(mkBox(0.1, 2.0, 0.1), pulseMat);
+      pulse.position.set(lx, 1.1, z);
+      pulse.scale.y = 0.05; scene.add(pulse);
 
       sensors.push({
-        glowMat, pulseMat, pulseMesh: pulse,
+        glowMat, pulseMat, pulseMesh: pulse, ledMat,
         laneX: lx, z,
-        phase: li * 0.35 + zi * 0.65
+        phase: li * 0.4 + zi * 0.7
       });
     });
   });
   return sensors;
 }
 
-/* ── THERMAL CAMERAS (열화상 카메라) ── */
+/* ════════════════════════════════════════
+   V2I 열화상 카메라 — 직관적 디자인
+   - 폴 + 카메라 헤드
+   - 와이어프레임 감지 콘 (카메라→도로 피라미드 윤곽)
+   - 반투명 스캔 필드
+   - 애니메이션 스캔 라인
+════════════════════════════════════════ */
 function buildThermalCameras(scene, id) {
   const thermals = [];
-
-  // camera station z positions (12-unit spacing)
-  const camZs = [-8, -22];
-  // tunnel mounts on ceiling; others on right shoulder pole
-  const onCeiling = id === 'tunnel';
-  const camX = onCeiling ? 4.2 : ROAD_W / 2 + 2.0;
-  const camY = onCeiling ? 3.6 : 5.8;
+  const onCeil   = id === 'tunnel';
+  const camX     = onCeil ? 4.2 : ROAD_W / 2 + 2.0;
+  const camY     = onCeil ? 3.6 : 5.8;
+  /* 12 단위 간격 2곳 */
+  const camZs    = [-6, -26];
 
   camZs.forEach((z, i) => {
-    if (!onCeiling) {
-      // Pole
+    /* ── 폴 ── */
+    if (!onCeil) {
       const pole = new THREE.Mesh(mkBox(0.12, camY, 0.12), mkMat(0x607080));
       pole.position.set(camX, camY / 2, z); scene.add(pole);
     }
 
-    // Camera head
+    /* ── 카메라 헤드 ── */
     const camMat = new THREE.MeshLambertMaterial({ color: 0x1a2530, emissive: 0x000000 });
-    const camBox = new THREE.Mesh(mkBox(0.45, 0.28, 0.62), camMat);
-    camBox.position.set(camX - (onCeiling ? 0 : 0.18), camY, z);
-    camBox.rotation.y = onCeiling ? 0 : -0.5;
+    const camBox = new THREE.Mesh(mkBox(0.5, 0.3, 0.7), camMat);
+    camBox.position.set(camX - (onCeil ? 0 : 0.2), camY, z);
+    camBox.rotation.y = onCeil ? 0 : -0.45;
     scene.add(camBox);
+    /* 렌즈 */
+    const lens = new THREE.Mesh(mkBox(0.12, 0.12, 0.04), mkMat(0x2255aa));
+    lens.position.set(camX - (onCeil ? 0 : 0.44), camY, z); scene.add(lens);
+    /* 카메라 표시등 (작은 LED) */
+    const camLedMat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.8 });
+    const camLed    = new THREE.Mesh(mkBox(0.08, 0.08, 0.04), camLedMat);
+    camLed.position.set(camX - (onCeil ? 0 : 0.44), camY + 0.18, z); scene.add(camLed);
 
-    // Lens
-    const lens = new THREE.Mesh(mkBox(0.1, 0.1, 0.04), mkMat(0x2255aa));
-    lens.position.set(camX - (onCeiling ? 0 : 0.42), camY, z); scene.add(lens);
+    /* ── 감지 콘 — 와이어프레임 피라미드 윤곽 ── */
+    const cx   = camX - 0.22; // 렌즈 기준점
+    const zHW  = 5.5;         // 도로 레벨 detection half-depth
+    const roadHW = ROAD_W / 2 + 0.5;
+    /* 카메라 → 도로 4 모서리 선 */
+    const wirePoints = [
+      cx, camY, z,   -roadHW, 0.12, z - zHW,
+      cx, camY, z,    roadHW, 0.12, z - zHW,
+      cx, camY, z,   -roadHW, 0.12, z + zHW,
+      cx, camY, z,    roadHW, 0.12, z + zHW,
+      /* 도로 레벨 사각형 윤곽 */
+      -roadHW, 0.12, z - zHW,  roadHW, 0.12, z - zHW,
+       roadHW, 0.12, z - zHW,  roadHW, 0.12, z + zHW,
+       roadHW, 0.12, z + zHW, -roadHW, 0.12, z + zHW,
+      -roadHW, 0.12, z + zHW, -roadHW, 0.12, z - zHW,
+    ];
+    const wireGeo = new THREE.BufferGeometry();
+    wireGeo.setAttribute('position', new THREE.Float32BufferAttribute(wirePoints, 3));
+    const wireMat = new THREE.LineBasicMaterial({ color: 0xff7700, transparent: true, opacity: 0.35 });
+    const wire    = new THREE.LineSegments(wireGeo, wireMat);
+    scene.add(wire);
 
-    // Detection field — wide semi-transparent plane across road at road level
+    /* ── 반투명 스캔 필드 (도로 레벨 평면) ── */
     const fanMat = new THREE.MeshBasicMaterial({
-      color: 0xff7700, transparent: true, opacity: 0.07, side: THREE.DoubleSide
+      color: 0xff6600, transparent: true, opacity: 0.05, side: THREE.DoubleSide
     });
-    const fan = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W + 1, 4.5), fanMat);
+    const fan = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W + 1, zHW * 2), fanMat);
     fan.rotation.x = -Math.PI / 2;
-    fan.position.set(0, 0.14, z); scene.add(fan);
+    fan.position.set(0, 0.13, z); scene.add(fan);
 
-    // Thin connecting beam camera → road
-    const beamMat = new THREE.MeshBasicMaterial({
-      color: 0xff8800, transparent: true, opacity: 0.12
+    /* ── 애니메이션 스캔 라인 (가는 수평 바) ── */
+    const scanMat = new THREE.MeshBasicMaterial({
+      color: 0xff9900, transparent: true, opacity: 0.55
     });
-    const beam = new THREE.Mesh(mkBox(0.04, camY, 0.04), beamMat);
-    beam.position.set(camX - 0.18, camY / 2, z); scene.add(beam);
+    const scanBar = new THREE.Mesh(mkBox(ROAD_W + 1, 0.03, 0.12), scanMat);
+    scanBar.position.set(0, 0.16, z); scene.add(scanBar);
 
-    thermals.push({ camMat, fanMat, beamMat, z, phase: i * 0.6 });
+    thermals.push({ camMat, camLedMat, wireMat, fanMat, scanMat, scanBar, z, zHW, phase: i * 0.7 });
   });
   return thermals;
 }
@@ -509,7 +660,7 @@ function buildParticles(scene) {
   for (let i = 0; i < count; i++) {
     pos[i*3]   = (Math.random() - 0.5) * 22;
     pos[i*3+1] = Math.random() * 14;
-    pos[i*3+2] = (Math.random() - 0.5) * 34 - 10;
+    pos[i*3+2] = (Math.random() - 0.5) * 50 - 20;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -521,12 +672,12 @@ function buildParticles(scene) {
 
 /* ── SCENE CONFIG ── */
 const SCENE_CFG = {
-  highway: { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 32, fogF: 56, cam: [0,   7, 13], look: [0,   0.5,  -8] },
-  tunnel:  { bg: 0x1e2530, fogClr: 0x1e2530, fogN: 14, fogF: 38, cam: [0, 3.5,  8], look: [0,   1.5, -12] },
-  curve:   { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 30, fogF: 56, cam:[-7,   8, 10], look: [6,   0,   -20] },
-  bridge:  { bg: 0x07121f, fogClr: 0x07121f, fogN: 36, fogF: 64, cam: [0,   9, 13], look: [0,  -0.5,  -8] },
-  ic:      { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 30, fogF: 56, cam:[-3,   7, 13], look: [3,   0.5,  -8] },
-  merge:   { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 28, fogF: 52, cam: [2,   7, 13], look: [2,   0.5,  -8] },
+  highway: { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 36, fogF: 65, cam: [0,   7, 14], look: [0,   0.5, -10] },
+  tunnel:  { bg: 0x1e2530, fogClr: 0x1e2530, fogN: 16, fogF: 42, cam: [0, 3.5,  9], look: [0,   1.5, -14] },
+  curve:   { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 32, fogF: 60, cam:[-7,   8, 10], look: [6,   0,   -20] },
+  bridge:  { bg: 0x07121f, fogClr: 0x07121f, fogN: 38, fogF: 85, cam:[-14, 11,  2], look: [1,   3.5, -20] },
+  ic:      { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 34, fogF: 65, cam:[-6,   9, 12], look: [4,   0.5, -12] },
+  merge:   { bg: 0x060d1a, fogClr: 0x060d1a, fogN: 30, fogF: 60, cam: [0,  10, 13], look: [2,   0,   -8] },
 };
 
 /* ── INIT ONE SCENE ── */
@@ -545,7 +696,7 @@ function initScene(sec) {
   scene.background = new THREE.Color(cfg.bg);
   scene.fog = new THREE.Fog(cfg.fogClr, cfg.fogN, cfg.fogF);
 
-  const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 80);
+  const camera = new THREE.PerspectiveCamera(62, W / H, 0.1, 90);
   camera.position.set(...cfg.cam);
   camera.lookAt(...cfg.look);
 
@@ -563,8 +714,8 @@ function initScene(sec) {
     dir.position.set(4, 10, 6); scene.add(dir);
   }
 
-  const egoLight = new THREE.PointLight(0xf97316, 0.8, 9);
-  egoLight.position.set(LANE_XS[1], 2, -1); scene.add(egoLight);
+  const egoLight = new THREE.PointLight(0xf97316, 1.0, 10);
+  egoLight.position.set(LANE_XS[1], 2, -4); scene.add(egoLight);
 
   buildEnvironment(scene, sec.id);
 
@@ -590,28 +741,27 @@ function initScene(sec) {
   simScenes[sec.id] = { renderer, scene, camera, cars, sensors, thermals, particles, dashes, egoLight, sec, st };
 }
 
-/* ── UPDATE STATUS COLORS ── */
+/* ── UPDATE STATUS ── */
 function updateSimStatus(sim, st) {
   sim.st = st;
   const col = CLR_NUM[st];
   sim.cars.forEach(car => { if (!car.isEgo && car.mat) car.mat.color.setHex(col); });
-  sim.sensors.forEach(s => { s.glowMat.color.setHex(col); s.pulseMat.color.setHex(col); });
+  sim.sensors.forEach(s  => { s.glowMat.color.setHex(col); s.pulseMat.color.setHex(col); });
+  sim.thermals.forEach(tc => { tc.wireMat.color.setHex(col); tc.fanMat.color.setHex(col); tc.scanMat.color.setHex(col); });
 }
 
-/* ── PER-FRAME UPDATE ── */
+/* ── PER-FRAME ── */
 function animateSim(sim, ts, dt) {
   const wx     = WEATHER[weather];
   const carSpd = (speed / 100) * (1 - wx.decel) * 0.055 * 60 * dt;
 
-  // ── car movement
+  /* ── 모든 차량 이동 (EGO 포함) ── */
   sim.cars.forEach(car => {
-    if (car.isEgo) return;
-
     if (car.curveAngle !== undefined) {
-      // arc-based movement for curve scene
-      const dTheta = (carSpd * car.speed) / CURVE_ARC_R;
+      /* 커브 호 경로 */
+      const dTheta = (carSpd * (car.isEgo ? 1.0 : car.speed + car.speedVar)) / CURVE_ARC_R;
       car.curveAngle += dTheta;
-      if (car.curveAngle > 1.65) car.curveAngle -= 1.45; // loop back near start
+      if (car.curveAngle > 1.65) car.curveAngle -= 1.45;
       const theta = car.curveAngle;
       const lx    = car.laneX;
       car.mesh.position.x = CURVE_ARC_R * (1 - Math.cos(theta)) + lx * Math.cos(theta);
@@ -620,49 +770,86 @@ function animateSim(sim, ts, dt) {
     } else if (car.ramp) {
       car.mesh.position.z += carSpd * car.speed;
       car.mesh.position.x += carSpd * car.speed * 0.38;
-      if (car.mesh.position.z > 7) car.mesh.position.set(LANE_XS[3], car.mesh.position.y, -6);
+      if (car.mesh.position.z > 8) car.mesh.position.set(LANE_XS[3], car.mesh.position.y, -6);
     } else {
-      car.mesh.position.z += carSpd * car.speed;
-      if (car.mesh.position.z > 9) car.mesh.position.z = -30;
+      /* 직선 구간: EGO와 NPC 모두 동일 방향 (+z) */
+      const spd = car.isEgo ? carSpd : carSpd * (car.speed + car.speedVar);
+      car.mesh.position.z += spd;
+      /* 차선 내 미세 흔들림 (NPC만) */
+      if (!car.isEgo) {
+        car.mesh.position.x = car.laneX + Math.sin(ts * 0.6 + car.swayPhase) * 0.03;
+      }
+      /* EGO: 살짝 바디 롤 */
+      if (car.isEgo) {
+        car.mesh.rotation.z = Math.sin(ts * 1.2) * 0.008;
+      }
+      /* 리셋 (EGO와 NPC 공통) */
+      if (car.mesh.position.z > 9) car.mesh.position.z = car.isEgo ? -32 : -38;
     }
   });
 
-  // ── lane dash scrolling (straight scenes only)
+  /* EGO 조명 위치 추적 */
+  const ego = sim.cars.find(c => c.isEgo);
+  if (ego) {
+    sim.egoLight.position.set(ego.mesh.position.x, 2, ego.mesh.position.z);
+  }
+
+  /* ── 차선 마킹 스크롤 ── */
   sim.dashes.forEach(m => {
     m.position.z += carSpd;
-    if (m.position.z > 13) m.position.z -= 50;
+    if (m.position.z > 14) m.position.z -= 66;
   });
 
-  // ── piezo sensor animation
+  /* ── 압전 센서 애니메이션 ── */
   sim.sensors.forEach(s => {
-    let carNear = false;
+    let carNear = false, egoNear = false;
     sim.cars.forEach(car => {
-      if (Math.abs(car.mesh.position.x - s.laneX) < 1.6 &&
-          Math.abs(car.mesh.position.z - s.z)     < 2.8) carNear = true;
+      const inX = Math.abs(car.mesh.position.x - s.laneX) < 1.6;
+      const inZ = Math.abs(car.mesh.position.z - s.z)     < 3.0;
+      if (inX && inZ) { carNear = true; if (car.isEgo) egoNear = true; }
     });
-    const baseOp   = 0.05 + 0.04 * Math.sin(ts * 2.5 + s.phase * 5);
-    const targetOp = carNear ? 0.88 : baseOp;
-    s.glowMat.opacity += (targetOp - s.glowMat.opacity) * 0.18;
-    s.pulseMat.opacity = carNear ? 0.72 + 0.28 * Math.sin(ts * 9 + s.phase) : 0;
+
+    /* EGO 감지 시 더 강한 반응 */
+    const targetOp = egoNear ? 0.92 : carNear ? 0.68 : 0.04 + 0.03 * Math.sin(ts * 2 + s.phase * 5);
+    s.glowMat.opacity += (targetOp - s.glowMat.opacity) * 0.2;
+
+    /* 데이터 빔 */
+    s.pulseMat.opacity = carNear ? 0.75 + 0.25 * Math.sin(ts * 10 + s.phase) : 0;
     if (s.pulseMesh) {
-      s.pulseMesh.scale.y = carNear ? 1 + 0.5 * Math.abs(Math.sin(ts * 6 + s.phase)) : 0.05;
+      s.pulseMesh.scale.y = carNear ? 1.4 + 0.9 * Math.abs(Math.sin(ts * 7 + s.phase)) : 0.05;
     }
+
+    /* RSU LED: 감지 시 깜빡임 */
+    s.ledMat.opacity = carNear ? 0.6 + 0.4 * Math.sin(ts * 8 + s.phase) : 0.25;
   });
 
-  // ── thermal camera animation
+  /* ── 열화상 카메라 애니메이션 ── */
   sim.thermals.forEach(tc => {
-    let vehicleInZone = false;
+    let carInZone = false, egoInZone = false;
     sim.cars.forEach(car => {
-      if (Math.abs(car.mesh.position.z - tc.z) < 5.5) vehicleInZone = true;
+      if (Math.abs(car.mesh.position.z - tc.z) < tc.zHW + 1.5) {
+        carInZone = true;
+        if (car.isEgo) egoInZone = true;
+      }
     });
-    const baseOp        = 0.05 + 0.02 * Math.sin(ts * 1.5 + tc.phase * 3);
-    tc.fanMat.opacity   = vehicleInZone ? 0.18 + 0.05 * Math.sin(ts * 4) : baseOp;
-    tc.beamMat.opacity  = vehicleInZone ? 0.28 : 0.07;
-    tc.camMat.emissive.setHex(vehicleInZone ? CLR_NUM[sim.st] : 0x000000);
-    tc.camMat.emissiveIntensity = vehicleInZone ? 0.45 + 0.2 * Math.sin(ts * 5) : 0;
+
+    /* 스캔 라인 왕복 */
+    tc.scanBar.position.z = tc.z + Math.sin(ts * 1.2 + tc.phase * 2) * tc.zHW * 0.85;
+
+    const baseOp = 0.04 + 0.02 * Math.sin(ts * 0.8 + tc.phase * 3);
+    tc.fanMat.opacity    = carInZone ? (egoInZone ? 0.18 : 0.12) + 0.04 * Math.sin(ts * 3) : baseOp;
+    tc.wireMat.opacity   = carInZone ? 0.7 : 0.25;
+    tc.scanMat.opacity   = carInZone ? 0.8 + 0.2 * Math.sin(ts * 4 + tc.phase) : 0.35;
+
+    /* 카메라 헤드 발광 (차량 감지 시) */
+    tc.camMat.emissive.setHex(carInZone ? CLR_NUM[sim.st] : 0x000000);
+    tc.camMat.emissiveIntensity = carInZone ? 0.5 + 0.2 * Math.sin(ts * 5) : 0;
+
+    /* 카메라 LED: EGO 감지 시 밝아짐 */
+    tc.camLedMat.opacity = egoInZone ? 1.0 : 0.7 + 0.2 * Math.sin(ts * 3 + tc.phase);
   });
 
-  // ── weather particles (unchanged)
+  /* ── 날씨 파티클 (불변) ── */
   const { geo, mat, pos } = sim.particles;
   const isRain = weather === 'rain';
   const isSnow = weather === 'snow';
@@ -676,7 +863,7 @@ function animateSim(sim, ts, dt) {
       if (pos[i*3+1] < -1) {
         pos[i*3]   = (Math.random() - 0.5) * 22;
         pos[i*3+1] = 14;
-        pos[i*3+2] = (Math.random() - 0.5) * 34 - 10;
+        pos[i*3+2] = (Math.random() - 0.5) * 50 - 20;
       }
     }
     geo.attributes.position.needsUpdate = true;
@@ -686,14 +873,14 @@ function animateSim(sim, ts, dt) {
   const cfg = SCENE_CFG[sim.sec.id];
   if (isFog) {
     sim.scene.fog.near = sim.sec.id === 'tunnel' ? cfg.fogN : 6;
-    sim.scene.fog.far  = sim.sec.id === 'tunnel' ? cfg.fogF : 18;
+    sim.scene.fog.far  = sim.sec.id === 'tunnel' ? cfg.fogF : 20;
     sim.scene.fog.color.setHex(0x2a4455);
   } else {
     sim.scene.fog.near = cfg.fogN;
     sim.scene.fog.far  = cfg.fogF;
     sim.scene.fog.color.setHex(cfg.fogClr);
   }
-  sim.egoLight.intensity = 0.6 + Math.sin(ts * 2.5) * 0.2;
+  sim.egoLight.intensity = 0.8 + Math.sin(ts * 2.5) * 0.15;
 }
 
 /* ── RENDER LOOP ── */
@@ -760,7 +947,7 @@ const TAB = {
     <h3>구간별 제한속도</h3>
     <div class="limit-grid">
       <div class="limit-card"><div class="lc-head">🚇 터널 진출입 구간</div><div class="lc-speed">100 km/h</div><div class="lc-rec">감속 10~20% 권장</div><ul><li>시야 및 조도 변화</li><li>횡풍 발생 대비</li></ul><div class="lc-law">도로교통법 제17조, 제48조</div></div>
-      <div class="limit-card"><div class="lc-head">↩️ 급커브 구간</div><div class="lc-speed">40~60 km/h</div><div class="lc-rec">곡률에 따라 차등 적용</div><ul><li>원심력 이탈 방지</li><li>횡풍 반경에 따른 속도 제한</li></ul><div class="lc-law">도로 구조 규칙 제19조</div></div>
+      <div class="limit-card"><div class="lc-head">↩️ 급커브 구간</div><div class="lc-speed">40~60 km/h</div><div class="lc-rec">곡률에 따라 차등 적용</div><ul><li>원심력 이탈 방지</li><li>곡률 반경별 속도 제한</li></ul><div class="lc-law">도로 구조 규칙 제19조</div></div>
       <div class="limit-card"><div class="lc-head">🌉 교량·고가도로</div><div class="lc-speed">본선 동일</div><div class="lc-rec">악천후 시 즉시 감속</div><ul><li>블랙아이스 생성 위험</li><li>측풍에 의한 이탈 방지</li></ul><div class="lc-law">도로교통법 시행규칙 제19조 2항</div></div>
       <div class="limit-card"><div class="lc-head">🔀 IC·JC 연결로</div><div class="lc-speed">40~80 km/h</div><div class="lc-rec">본선 설계속도에 비례</div><ul><li>좁고 급한 곡선 구조</li><li>본선 진출입 속도 제어</li></ul><div class="lc-law">도로 구조 규칙 제33조</div></div>
       <div class="limit-card"><div class="lc-head">🚦 병목·합류구간</div><div class="lc-speed">본선의 70~80%</div><div class="lc-rec">가속 필요 구간</div><ul><li>흐름 동기화 및 충돌 방지</li><li>원활한 합류 유도</li></ul><div class="lc-law">도로교통법 제65조, 구조 규칙 제34조</div></div>
