@@ -47,10 +47,16 @@ function updateHUD() {
     const curEl = document.getElementById('cur-' + sec.id);
     curEl.className = 'hud-cur ' + st;
     curEl.querySelector('b').textContent = speed;
-    const sigEl = document.getElementById('sig-' + sec.id);
-    const overRec = speed > sec.speedLimit * (1 - WEATHER[weather].decel);
-    sigEl.textContent = overRec ? w.signal : '';
-    sigEl.className = 'hud-signal ' + (overRec ? st : '');
+    const sigEl     = document.getElementById('sig-' + sec.id);
+    const overLimit = speed > sec.speedLimit;
+    const overRec   = speed > sec.speedLimit * (1 - WEATHER[weather].decel);
+    const panelSig  = overLimit ? '즉시 감속 !'
+                    : overRec   ? (weather === 'clear' ? '감속'
+                                 : weather === 'rain'  ? '감속 20% 권고'
+                                 : '감속 50% 명령')
+                    : '';
+    sigEl.textContent = panelSig;
+    sigEl.className   = 'hud-signal' + (panelSig ? ' ' + st : '');
     const sim = simScenes[sec.id];
     if (sim) updateSimStatus(sim, st);
   });
