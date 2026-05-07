@@ -48,7 +48,9 @@ function updateHUD() {
     curEl.className = 'hud-cur ' + st;
     curEl.querySelector('b').textContent = speed;
     const sigEl = document.getElementById('sig-' + sec.id);
-    sigEl.textContent = w.signal; sigEl.className = 'hud-signal ' + st;
+    const overRec = speed > sec.speedLimit * (1 - WEATHER[weather].decel);
+    sigEl.textContent = overRec ? w.signal : '';
+    sigEl.className = 'hud-signal ' + (overRec ? st : '');
     const sim = simScenes[sec.id];
     if (sim) updateSimStatus(sim, st);
   });
