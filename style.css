@@ -474,3 +474,78 @@ input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+/* ── MOBILE (≤768px) ──────────────────────── */
+@media (max-width: 768px) {
+
+  /* Header */
+  .site-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1.2rem 1.1rem;
+  }
+  .site-title { font-size: 1.9rem; }
+  .site-sub   { font-size: 0.95rem; }
+
+  /* Control panel */
+  .control-panel { padding: 1.2rem 1.1rem; }
+  .control-inner  { gap: 1.5rem; }
+  .control-block  { min-width: 0; width: 100%; }
+  .legend-block   { max-width: 100%; }
+
+  /* Speed row: stack big number + signal box vertically */
+  .speed-row-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+  .signal-box { width: 100%; }
+
+  /* Weather buttons: let them scroll horizontally so they never wrap-wrap awkwardly */
+  .weather-btns {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.4rem;
+  }
+  .w-btn { flex-shrink: 0; }
+
+  /* Simulation section */
+  .sim-section { padding: 1.2rem 1.1rem; }
+  .sim-header  { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+
+  /* Info section & tabs */
+  .info-section { padding: 0 1.1rem 1.5rem; }
+
+  .info-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+  .tab-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .tab-body { padding: 1.4rem 1.1rem; }
+
+  /* Info table: allow horizontal scroll on very small screens */
+  .info-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Algorithm cards: single column */
+  .algo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Speed limit cards: single column */
+  .limit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Footer */
+  .site-footer { padding: 1.2rem 1.1rem; }
+}
