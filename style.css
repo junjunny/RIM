@@ -488,28 +488,37 @@ input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
   .site-title { font-size: 1.9rem; }
   .site-sub   { font-size: 0.95rem; }
 
-  /* Control panel */
+  /* Control panel: stack three blocks vertically */
   .control-panel { padding: 1.2rem 1.1rem; }
-  .control-inner  { gap: 1.5rem; }
-  .control-block  { min-width: 0; width: 100%; }
-  .legend-block   { max-width: 100%; }
+  .control-inner {
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+  .control-block { min-width: 0; width: 100%; }
+  .legend-block  { max-width: 100%; }
 
-  /* Speed row: stack big number + signal box vertically */
+  /* Weather buttons: 2×2 grid so all 4 cards visible without scrolling */
+  .weather-btns {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    overflow-x: visible;
+    gap: 0.55rem;
+    padding-bottom: 0;
+  }
+  .w-btn {
+    flex-shrink: unset;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Speed row: stack number + signal box, then full-width slider */
   .speed-row-top {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.8rem;
   }
-  .signal-box { width: 100%; }
-
-  /* Weather buttons: let them scroll horizontally so they never wrap-wrap awkwardly */
-  .weather-btns {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 0.4rem;
-  }
-  .w-btn { flex-shrink: 0; }
+  .signal-box  { width: 100%; }
+  .slider-wrap { width: 100%; }
 
   /* Simulation section */
   .sim-section { padding: 1.2rem 1.1rem; }
